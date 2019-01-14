@@ -1,4 +1,6 @@
-﻿namespace LiveCharts.Core.Drawing.Styles
+﻿using LiveCharts.Drawing.Brushes;
+
+namespace LiveCharts.Drawing.Styles
 {
     /// <summary>
     /// Defines a data label style.
@@ -11,7 +13,7 @@
         /// <value>
         /// The color of the fore.
         /// </value>
-        public Brush Foreground { get; set; }
+        public Brush? Foreground { get; set; }
 
         /// <summary>
         /// Gets or sets the font of the label.
@@ -27,7 +29,7 @@
         /// <value>
         /// The padding.
         /// </value>
-        public Margin Padding { get; set; }
+        public Padding Padding { get; set; }
 
         /// <summary>
         /// Gets or sets the labels rotation.
@@ -54,7 +56,8 @@
                 if (alpha >= 90 && alpha < 180)
                 {
                     alpha += 180;
-                } else if (alpha >= 180 && alpha < 270)
+                }
+                else if (alpha >= 180 && alpha < 270)
                 {
                     alpha -= 180;
                 }

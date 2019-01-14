@@ -29,7 +29,7 @@ using System;
 
 #endregion
 
-namespace LiveCharts.Core.Themes
+namespace LiveCharts.Themes
 {
     /// <summary>
     /// The default themes.
@@ -42,7 +42,7 @@ namespace LiveCharts.Core.Themes
         /// <param name="charting">The charting.</param>
         /// <param name="theme">The theme.</param>
         /// <returns></returns>
-        public static Charting SetTheme(this Charting charting, Themes theme)
+        public static Settings SetTheme(this Settings charting, Themes theme)
         {
             switch (theme)
             {

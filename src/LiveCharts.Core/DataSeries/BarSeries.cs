@@ -26,47 +26,49 @@
 
 using System;
 using System.Drawing;
-using LiveCharts.Core.Charts;
-using LiveCharts.Core.Coordinates;
-using LiveCharts.Core.Dimensions;
-using LiveCharts.Core.Drawing;
-using LiveCharts.Core.Drawing.Styles;
-using LiveCharts.Core.Interaction;
-using LiveCharts.Core.Interaction.Points;
-using LiveCharts.Core.Interaction.Series;
-using LiveCharts.Core.Updating;
+using LiveCharts.Charts;
+using LiveCharts.Coordinates;
+using LiveCharts.Dimensions;
+using LiveCharts.Drawing;
+using LiveCharts.Drawing.Shapes;
+using LiveCharts.Drawing.Styles;
+using LiveCharts.Interaction;
+using LiveCharts.Interaction.Points;
+using LiveCharts.Updating;
 
 #endregion
 
-namespace LiveCharts.Core.DataSeries
+namespace LiveCharts.DataSeries
 {
     /// <summary>
     /// The bar series class.
     /// </summary>The column series class.
     /// <typeparam name="TModel">The type of the model.</typeparam>
-    public class BarSeries<TModel> : BaseBarSeries<TModel, PointCoordinate, IBarSeries>
+    public class BarSeries<TModel> : BaseBarSeries<TModel, PointCoordinate>
     {
-        private ISeriesViewProvider<TModel, PointCoordinate, RectangleViewModel, IBarSeries> _provider;
-
         /// <inheritdoc />
         public BarSeries()
         {
             DataLabelFormatter = coordinate => Format.AsMetricNumber(coordinate.Y);
             TooltipFormatter = DataLabelFormatter;
-            Charting.BuildFromTheme<IBarSeries>(this);
-            Charting.BuildFromTheme<ISeries<PointCoordinate>>(this);
+            Global.Settings.BuildFromTheme<IBarSeries>(this);
+            Global.Settings.BuildFromTheme<ISeries<PointCoordinate>>(this);
         }
 
         /// <inheritdoc />
-        protected override ISeriesViewProvider<TModel, PointCoordinate, RectangleViewModel, IBarSeries>
-            DefaultViewProvider => _provider ??
-                                   (_provider = Charting.Settings.UiProvider.BarViewProvider<TModel, PointCoordinate, IBarSeries>());
-
-        /// <inheritdoc />
-        protected override void BuildModel(
-            ChartPoint<TModel, PointCoordinate, RectangleViewModel, IBarSeries> current, UpdateContext context, ChartModel chart, 
-            Plane directionAxis, Plane scaleAxis, float cw, float columnStart, float[] byBarOffset, float[] positionOffset, 
-            Orientation orientation, int h, int w)
+        internal override RectangleViewModel BuildModel(
+            ChartPoint<TModel, PointCoordinate, IRectangle> current,
+            UpdateContext context,
+            ChartModel chart,
+            Plane directionAxis,
+            Plane scaleAxis,
+            float cw,
+            float columnStart,
+            float[] byBarOffset,
+            float[] positionOffset,
+            Orientation orientation,
+            int h,
+            int w)
         {
             float currentOffset = chart.ScaleToUi(current.Coordinate[0][0], directionAxis);
 
@@ -90,30 +92,37 @@ namespace LiveCharts.Core.DataSeries
                 columnStart + (columnCorner1[1] < columnStart ? difference[1] : 0f)
             };
 
-            if (current.View.VisualElement == null)
+            if (current.Shape == null)
             {
                 var initialRectangle = chart.InvertXy
-                    ? new RectangleF(
+                    ? new RectangleD(
                         columnStart,
                         location[h] + byBarOffset[1] + positionOffset[1],
                         0f,
                         Math.Abs(difference[h]))
-                    : new RectangleF(
+                    : new RectangleD(
                         location[w] + byBarOffset[0] + positionOffset[0],
                         columnStart,
                         Math.Abs(difference[w]),
                         0f);
-                current.ViewModel = new RectangleViewModel(RectangleF.Empty, initialRectangle, orientation);
+                return new RectangleViewModel(RectangleD.Empty, initialRectangle, orientation);
             }
 
-            current.ViewModel = new RectangleViewModel(
-                current.ViewModel.To,
-                new RectangleF(
+            unchecked
+            {
+                return new RectangleViewModel(
+                new RectangleD(
+                    current.Shape.Left,
+                    current.Shape.Top,
+                    current.Shape.Width,
+                    current.Shape.Height),
+                new RectangleD(
                     location[w] + byBarOffset[0] + positionOffset[0],
                     location[h] + byBarOffset[1] + positionOffset[1],
                     Math.Abs(difference[w]),
                     Math.Abs(difference[h])),
                 orientation);
+            }
         }
     }
 }

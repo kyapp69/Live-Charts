@@ -25,19 +25,20 @@
 #region
 
 using System.Drawing;
-using LiveCharts.Core.DataSeries;
-using LiveCharts.Core.Dimensions;
-using LiveCharts.Core.Drawing;
-using LiveCharts.Core.Drawing.Styles;
-using LiveCharts.Core.Interaction;
+using LiveCharts.DataSeries;
+using LiveCharts.Dimensions;
+using LiveCharts.Drawing.Brushes;
+using LiveCharts.Drawing.Shapes;
+using LiveCharts.Drawing.Styles;
+using LiveCharts.Interaction;
 #if NET45 || NET46
-using Font = LiveCharts.Core.Drawing.Styles.Font;
-using FontStyle= LiveCharts.Core.Drawing.Styles.FontStyle;
+using Font = LiveCharts.Drawing.Styles.Font;
+using FontStyle= LiveCharts.Drawing.Styles.FontStyle;
 #endif
 
 #endregion
 
-namespace LiveCharts.Core.Themes
+namespace LiveCharts.Themes
 {
     /// <summary>
     /// material design theme.
@@ -48,7 +49,7 @@ namespace LiveCharts.Core.Themes
         /// Uses the material design light theme.
         /// </summary>
         /// <param name="charting">The settings.</param>
-        internal static Charting SetMaterialDesignDefaults(this Charting charting)
+        internal static Settings SetMaterialDesignDefaults(this Settings charting)
         {
             var baseFont = new Font("Arial", 13, FontStyle.Regular, FontWeight.Regular);
 
@@ -117,7 +118,7 @@ namespace LiveCharts.Core.Themes
                 .SetDefault<Plane>(plane =>
                 {
                     plane.LabelsFont = baseFont;
-                    plane.LabelsForeground = new SolidColorBrush(Color.FromArgb(30, 30, 30));
+                    plane.LabelsForeground = new SolidColorBrush(255, 30, 30, 30);
                     plane.LabelsRotation = 0;
                     plane.LabelFormatter = Format.AsMetricNumber;
                 })
@@ -125,8 +126,8 @@ namespace LiveCharts.Core.Themes
                 {
                     axis.XSeparatorStyle = null;
                     axis.YSeparatorStyle = new ShapeStyle(
-                        new SolidColorBrush(Color.FromArgb(0, 0, 0, 0)),
-                        new SolidColorBrush(Color.FromArgb(255, 225, 225, 225)),
+                        new SolidColorBrush(0, 0, 0, 0),
+                        new SolidColorBrush(255, 225, 225, 225),
                         0,
                         null);
                     axis.XAlternativeSeparatorStyle = null;

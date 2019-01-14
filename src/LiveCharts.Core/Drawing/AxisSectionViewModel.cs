@@ -24,19 +24,18 @@
 #endregion
 #region
 
+using LiveCharts.Dimensions;
 using System.Drawing;
-using LiveCharts.Core.Dimensions;
-using LiveCharts.Core.Drawing.Styles;
 
 #endregion
 
-namespace LiveCharts.Core.Drawing
+namespace LiveCharts.Drawing
 {
     /// <summary>
     /// Represents an axis label.
     /// </summary>
     /// <seealso cref="Rectangle" />
-    public struct AxisSectionViewModel
+    internal struct AxisSectionViewModel
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="AxisSectionViewModel"/> struct.
@@ -46,20 +45,20 @@ namespace LiveCharts.Core.Drawing
         /// <param name="margin">The margin.</param>
         /// <param name="content">The content.</param>
         /// <param name="size">The size.</param>
-        /// <param name="labelStyle">The label style.</param>
+        /// <param name="actuaLabelsRotation">The plane actual labels rotation.</param>
         /// <param name="position">The axis position</param>
         public AxisSectionViewModel(
             PointF pointer,
             PointF offset,
-            Margin margin,
+            Padding margin,
             object content,
             SizeF size,
-            LabelStyle labelStyle,
+            double actuaLabelsRotation,
             AxisPosition position)
         {
             Pointer = pointer;
             Offset = offset;
-            if (labelStyle.ActualLabelsRotation > 90 || position == AxisPosition.Top)
+            if (actuaLabelsRotation > 90 || position == AxisPosition.Top)
             {
                 offset = new PointF(offset.X, -offset.Y);
             }
@@ -67,7 +66,6 @@ namespace LiveCharts.Core.Drawing
             Margin = margin;
             Content = content;
             Size = size;
-            LabelStyle = labelStyle;
         }
 
         /// <summary>
@@ -116,14 +114,6 @@ namespace LiveCharts.Core.Drawing
         /// <value>
         /// The margin.
         /// </value>
-        public Margin Margin { get; set; }
-
-        /// <summary>
-        /// Gets or sets the label style.
-        /// </summary>
-        /// <value>
-        /// The label style.
-        /// </value>
-        public LabelStyle LabelStyle { get; set; }
+        public Padding Margin { get; set; }
     }
 }

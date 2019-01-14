@@ -22,18 +22,15 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR 
 // OTHER DEALINGS IN THE SOFTWARE.
 #endregion
-#region
-
-#endregion
 
 #region
 
-using LiveCharts.Core.Coordinates;
-using LiveCharts.Core.Interaction.Points;
+using LiveCharts.Coordinates;
+using LiveCharts.Interaction.Points;
 
 #endregion
 
-namespace LiveCharts.Core.Interaction.Events
+namespace LiveCharts.Interaction.Events
 {
     /// <summary>
     /// The model state event arguments.
@@ -47,7 +44,7 @@ namespace LiveCharts.Core.Interaction.Events
         /// <param name="shape">The visual.</param>
         /// <param name="point">the point.</param>
         public ModelStateEventArgs(
-            object shape,
+            object? shape,
             IChartPoint<TModel, TCoordinate> point)
         {
             Shape = shape;
@@ -68,6 +65,6 @@ namespace LiveCharts.Core.Interaction.Events
         /// <value>
         /// The visual.
         /// </value>
-        public object Shape { get; }
+        public object? Shape { get; }
     }
 }

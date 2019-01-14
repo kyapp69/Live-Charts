@@ -24,20 +24,35 @@
 #endregion
 #region
 
-using LiveCharts.Core.Charts;
-using LiveCharts.Core.Dimensions;
-using LiveCharts.Core.Drawing;
-using LiveCharts.Core.Drawing.Styles;
+using LiveCharts.Charts;
+using LiveCharts.Dimensions;
+using LiveCharts.Drawing;
+using LiveCharts.Drawing.Styles;
 
 #endregion
 
-namespace LiveCharts.Core.Interaction.Events
+namespace LiveCharts.Interaction.Events
 {
     /// <summary>
     /// The Cartesian Axis Separator Arguments.
     /// </summary>
     public class CartesianAxisSectionArgs
     {
+        /// <summary>
+        /// Initalizes a new instance of the <see cref="CartesianAxisSectionArgs"/> class.
+        /// </summary>
+        /// <param name="view"></param>
+        /// <param name="plane"></param>
+        /// <param name="section"></param>
+        /// <param name="style"></param>
+        public CartesianAxisSectionArgs(IChartView view, Plane plane, Section section, ShapeStyle style)
+        {
+            ChartView = view;
+            Plane = plane;
+            Section = section;
+            Style = style;
+        }
+
         /// <summary>
         /// Gets or sets the index of the z.
         /// </summary>
@@ -60,7 +75,7 @@ namespace LiveCharts.Core.Interaction.Events
         /// <value>
         /// From.
         /// </value>
-        public RectangleViewModel Rectangle { get; internal set; }
+        internal RectangleViewModel Rectangle { get; set; }
 
         /// <summary>
         /// Gets or sets the axis label model.
@@ -68,7 +83,7 @@ namespace LiveCharts.Core.Interaction.Events
         /// <value>
         /// The axis label model.
         /// </value>
-        public AxisSectionViewModel Label { get; internal set; }
+        internal AxisSectionViewModel Label { get; set; }
 
         /// <summary>
         /// Gets the plane.

@@ -28,16 +28,16 @@
 using System;
 using System.Drawing;
 using System.Linq;
-using LiveCharts.Core.DataSeries;
-using LiveCharts.Core.Dimensions;
-using LiveCharts.Core.Drawing;
-using LiveCharts.Core.Interaction;
-using LiveCharts.Core.Interaction.Points;
-using LiveCharts.Core.Updating;
+using LiveCharts.DataSeries;
+using LiveCharts.Dimensions;
+using LiveCharts.Drawing;
+using LiveCharts.Interaction;
+using LiveCharts.Interaction.Points;
+using LiveCharts.Updating;
 
 #endregion
 
-namespace LiveCharts.Core.Charts
+namespace LiveCharts.Charts
 {
     /// <inheritdoc />
     public class PieChartModel : ChartModel
@@ -48,27 +48,30 @@ namespace LiveCharts.Core.Charts
         /// <param name="view">The chart view.</param>
         public PieChartModel(IChartView view) : base(view)
         {
-            Charting.BuildFromTheme((IPieChartView) view);
+            Global.Settings.BuildFromTheme((IPieChartView) view);
         }
 
         /// <inheritdoc />
         protected override int DimensionsCount => 2;
 
-        public override float ScaleToUi(double dataValue, Plane plane, float[] sizeVector = null)
+        /// <inheritdoc />
+        public override float ScaleToUi(double dataValue, Plane plane, float[]? sizeVector = null)
         {
             throw new NotImplementedException();
         }
 
-        public override double ScaleFromUi(float pixelsValue, Plane plane, float[] sizeVector = null)
+        /// <inheritdoc />
+        public override double ScaleFromUi(float pixelsValue, Plane plane, float[]? sizeVector = null)
         {
             throw new NotImplementedException();
         }
 
+        /// <inheritdoc />
         protected override PointF GetTooltipLocation(IChartPoint[] points)
         {
             var p = points[0];
 
-            var model = (PieViewModel)p.ViewModel;
+            var model = new PieViewModel();
             double angle = ((IPieChartView)View).StartingRotationAngle + model.To.Rotation + model.To.Wedge * .5;
             float radius = model.To.OuterRadius;
 
@@ -93,7 +96,7 @@ namespace LiveCharts.Core.Charts
                 return;
             }
 
-            View.Content.DrawArea = new RectangleF(
+            View.Canvas.DrawArea = new RectangleF(
                 new PointF(DrawAreaLocation[0], DrawAreaLocation[1]),
                 new SizeF(DrawAreaSize[0], DrawAreaSize[1]));
 

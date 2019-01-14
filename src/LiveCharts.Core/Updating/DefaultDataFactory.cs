@@ -26,15 +26,15 @@
 
 using System.Collections.Generic;
 using System.ComponentModel;
-using LiveCharts.Core.Charts;
-using LiveCharts.Core.Coordinates;
-using LiveCharts.Core.DataSeries;
-using LiveCharts.Core.Interaction.Points;
-using LiveCharts.Core.Interaction.Series;
+using LiveCharts.Charts;
+using LiveCharts.Coordinates;
+using LiveCharts.Drawing.Shapes;
+using LiveCharts.Interaction.Points;
+using LiveCharts.Interaction.Series;
 
 #endregion
 
-namespace LiveCharts.Core.Updating
+namespace LiveCharts.Updating
 {
     /// <summary>
     /// Defines the default chart point factory.
@@ -42,13 +42,15 @@ namespace LiveCharts.Core.Updating
     /// <seealso cref="IDataFactory" />
     public class DataFactory : IDataFactory
     {
+        private static readonly object _nullKey = new object();
+
         /// <inheritdoc />
-        public void Fetch<TModel, TCoordinate, TViewModel, TSeries>(
-            DataFactoryContext<TModel, TCoordinate, TSeries> context, 
-            Dictionary<object, ChartPoint<TModel, TCoordinate, TViewModel, TSeries>> tracker, 
+        public void Fetch<TModel, TCoordinate, TPointShape>(
+            DataFactoryContext<TModel, TCoordinate> context,
+            Dictionary<object, ChartPoint<TModel, TCoordinate, TPointShape>> tracker,
             out int count)
             where TCoordinate : ICoordinate
-            where TSeries : ISeries
+            where TPointShape : class, IShape
         {
             ModelToCoordinateMapper<TModel, TCoordinate> mapper = context.Mapper;
             bool notifiesChange = context.Series.Metadata.IsObservable;
@@ -59,15 +61,15 @@ namespace LiveCharts.Core.Updating
             {
                 var instance = collection[index];
 
-                var key = isValueType ? index : (object) instance;
+                object key = isValueType ? index : instance ?? _nullKey;
 
-                if (!tracker.TryGetValue(key, out ChartPoint<TModel, TCoordinate, TViewModel, TSeries> chartPoint))
+                if (!tracker.TryGetValue(key, out ChartPoint<TModel, TCoordinate, TPointShape> chartPoint))
                 {
-                    chartPoint = new ChartPoint<TModel, TCoordinate, TViewModel, TSeries>();
+                    chartPoint = new ChartPoint<TModel, TCoordinate, TPointShape>(context.Series, context.Chart.View);
                     tracker.Add(key, chartPoint);
                     if (notifiesChange)
                     {
-                        var npc = (INotifyPropertyChanged) instance;
+                        var npc = (INotifyPropertyChanged)instance;
 
                         // ToDo: Evaluate memory consumption with and without observers...
                         void InvalidateOnPropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -75,7 +77,7 @@ namespace LiveCharts.Core.Updating
                             chartPoint.Chart.Model.Invalidate();
                         }
 
-                        void DisposeByValPoint(IChartView view, object sender)
+                        void DisposeByValPoint(IChartView view, object sender, bool force)
                         {
                             npc.PropertyChanged -= InvalidateOnPropertyChanged;
                             tracker.Remove(key);

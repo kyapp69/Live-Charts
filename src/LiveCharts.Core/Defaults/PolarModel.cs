@@ -29,7 +29,7 @@ using System.Runtime.CompilerServices;
 
 #endregion
 
-namespace LiveCharts.Core.Defaults
+namespace LiveCharts.Defaults
 {
     /// <summary>
     /// Defines an observable polar point, this object notifies the chart to update when any property change.
@@ -71,7 +71,7 @@ namespace LiveCharts.Core.Defaults
             set
             {
                 _radius = value;
-                OnPropertyChanged();
+                OnPropertyChanged(nameof(Radius));
             }
         }
 
@@ -87,7 +87,7 @@ namespace LiveCharts.Core.Defaults
             set
             {
                 _angle = value;
-                OnPropertyChanged();
+                OnPropertyChanged(nameof(Angle));
             }
         }
 
@@ -100,7 +100,7 @@ namespace LiveCharts.Core.Defaults
         /// Called when Value property changes.
         /// </summary>
         /// <param name="propertyName">Name of the property.</param>
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }

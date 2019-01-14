@@ -26,12 +26,10 @@
 
 using System;
 using System.Globalization;
-using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
-using LiveCharts.Core;
-using LiveCharts.Core.Animations;
-using LiveCharts.Wpf.Controls;
+using LiveCharts.Drawing.Brushes;
+using Brush = LiveCharts.Drawing.Brushes.Brush;
 
 #endregion
 
@@ -40,7 +38,7 @@ namespace LiveCharts.Wpf.Converters
     /// <summary>
     /// 
     /// </summary>
-    /// <seealso cref="System.Windows.Data.IValueConverter" />
+    /// <seealso cref="IValueConverter" />
     public class CoreToWpfBrushConverter : IValueConverter
     {
         /// <summary>
@@ -57,17 +55,8 @@ namespace LiveCharts.Wpf.Converters
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value == null) return null;
-
-            var coreBrush = (Core.Drawing.Brush) value;
-
-            if (coreBrush is Core.Drawing.SolidColorBrush scb)
-            {
-                return new SolidColorBrush(
-                    System.Windows.Media.Color.FromArgb(
-                        scb.Color.A, scb.Color.R, scb.Color.G, scb.Color.B));
-            }
-
-            throw new LiveChartsException(143, "WPF");
+            var coreBrush = (Brush) value;
+            return coreBrush.AsWpfBrush();
         }
 
         /// <summary>

@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR 
 // OTHER DEALINGS IN THE SOFTWARE.
 #endregion
-namespace LiveCharts.Core.Drawing.Styles
+namespace LiveCharts.Drawing.Styles
 {
     /// <summary>
     /// A font abstraction.
@@ -88,6 +88,11 @@ namespace LiveCharts.Core.Drawing.Styles
         /// The weight.
         /// </value>
         public FontWeight Weight { get; }
+
+        /// <summary>
+        /// Get the default font.
+        /// </summary>
+        public static Font Default => new Font("Arial", 10, FontStyle.Regular, FontWeight.Regular);
 
         /// <summary>
         /// Determines whether the specified <see cref="System.Object" />, is equal to this instance.

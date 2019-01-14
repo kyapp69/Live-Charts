@@ -48,9 +48,11 @@
     <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Animations\Extensions.cs" />
-    <Compile Include="Chart.cs" />
-    <Compile Include="Controls\ChartContent.cs" />
+    <Compile Include="API\Initialize.cs" />
+    <Compile Include="API\PathAnimationBuilder.cs" />
+    <Compile Include="API\LiveChartsEasing.cs" />
+    <Compile Include="API\Chart.cs" />
+    <Compile Include="API\ChartCanvas.cs" />
     <Compile Include="Controls\DialogContent.cs" />
     <Compile Include="Controls\HorizontalDraggable.cs" />
     <Compile Include="Controls\HorizontalDraggableThumb.cs" />
@@ -64,36 +66,29 @@
     <Compile Include="Converters\GetHeightForDialog.cs" />
     <Compile Include="Converters\GetWidthForDialog.cs" />
     <Compile Include="Converters\SvgToGeometryDataConverter.cs" />
-    <Compile Include="ChartTooltip.cs" />
-    <Compile Include="ChartLegend.cs" />
-    <Compile Include="Controls\AxisLabel.cs" />
-    <Compile Include="CoreToPlatform.cs" />
-    <Compile Include="PieChart.cs" />
+    <Compile Include="API\ChartTooltip.cs" />
+    <Compile Include="API\ChartLegend.cs" />
+    <Compile Include="API\CanvasHelper.cs" />
+    <Compile Include="API\ChartBezierSegment.cs" />
+    <Compile Include="API\ChartBezierShape.cs" />
+    <Compile Include="API\ChartPath.cs" />
+    <Compile Include="API\ChartLabel.cs" />
+    <Compile Include="API\CoreToPlatform.cs" />
+    <Compile Include="API\ChartLineSegment.cs" />
+    <Compile Include="API\ChartRectangle.cs" />
+    <Compile Include="API\ChartSegment.cs" />
+    <Compile Include="API\ChartShape.cs" />
+    <Compile Include="API\ChartSlice.cs" />
+    <Compile Include="API\ChartSvgPath.cs" />
+    <Compile Include="API\PathHelper.cs" />
+    <Compile Include="API\PieChart.cs" />
     <Compile Include="Shapes\DialogShape.cs" />
-    <Compile Include="Shapes\Slice.cs" />
-    <Compile Include="Views\HeatPointView.cs" />
-    <Compile Include="Views\PiePointView.cs" />
-    <Compile Include="Views\PlaneView.cs" />
-    <Compile Include="Views\Providers\BarSeriesViewProvider.cs" />
-    <Compile Include="Views\Providers\SelfDrawnBezierSeriesViewProvider.cs" />
-    <Compile Include="Views\Providers\FromPivotBezierSeriesViewProvider.cs" />
-    <Compile Include="Views\Providers\HeatViewSeriesProvider.cs" />
-    <Compile Include="Views\Providers\PieSeriesViewProvider.cs" />
-    <Compile Include="Views\Providers\PlaneViewProvider.cs" />
-    <Compile Include="Views\Providers\GeometryPointSeriesViewProvider.cs" />
-    <Compile Include="Views\BezierPointView.cs" />
-    <Compile Include="Views\CartesianPath.cs" />
-    <Compile Include="Views\PointView.cs" />
-    <Compile Include="Animations\AnimationBuilder.cs" />
-    <Compile Include="Views\GeometryPointView.cs" />
-    <Compile Include="UiProvider.cs" />
-    <Compile Include="CartesianChart.cs">
+    <Compile Include="API\AnimationBuilder.cs" />
+    <Compile Include="API\CartesianChart.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Views\SelfDrawnPath.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Views\BarPointView.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -111,23 +106,22 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
-    <Compile Include="Config.cs" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\LiveCharts.Core\LiveCharts.Core.csproj">
-      <Project>{8CAF054C-FB7C-405B-889D-59048650F4B4}</Project>
-      <Name>LiveCharts.Core</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <Page Include="Themes\Generic.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LiveCharts.Core\LiveCharts.csproj">
+      <Project>{8caf054c-fb7c-405b-889d-59048650f4b4}</Project>
+      <Name>LiveCharts</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

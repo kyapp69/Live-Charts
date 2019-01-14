@@ -25,115 +25,107 @@
 
 #region
 
+using LiveCharts.Charts;
+using LiveCharts.Coordinates;
+using LiveCharts.Drawing.Brushes;
+using LiveCharts.Drawing.Shapes;
 using System.Collections.Generic;
-using System.Linq;
-using LiveCharts.Core.Charts;
-using LiveCharts.Core.Coordinates;
-using LiveCharts.Core.Drawing;
+#if NET45 || NET46
+using Brush = LiveCharts.Drawing.Brushes.Brush;
+#endif
 
 #endregion
 
-namespace LiveCharts.Core.DataSeries
+namespace LiveCharts.DataSeries
 {
     /// <summary>
     /// An <see cref="ISeries"/> that has <see cref="Stroke"/> and <see cref="Fill"/> properties.
     /// </summary>
-    /// <typeparam name="TModel">The type of the model.</typeparam>
-    /// <typeparam name="TCoordinate">The type of the coordinate.</typeparam>
-    /// <typeparam name="TViewModel">The type of the view model.</typeparam>
-    /// <typeparam name="TSeries">The type of the series.</typeparam>
-    /// <seealso cref="Series{TModel, TCoordinate, TViewModel, TSeries}" />
+    /// <typeparam name="TModel">The type of the model to plot.</typeparam>
+    /// <typeparam name="TCoordinate">The type of the coordinate required by the series.</typeparam>
+    /// <typeparam name="TPointShape">The type of the point shape in the UI.</typeparam>
+    /// <seealso cref="Series{TModel, TCoordinate, TPointShape}" />
     /// <seealso cref="IStrokeSeries" />
-    public abstract class StrokeSeries<TModel, TCoordinate, TViewModel, TSeries> 
-        : Series<TModel, TCoordinate, TViewModel, TSeries>, IStrokeSeries
+    public abstract class StrokeSeries<TModel, TCoordinate, TPointShape>
+        : Series<TModel, TCoordinate, TPointShape>, IStrokeSeries
         where TCoordinate : ICoordinate
-        where TSeries : class, ISeries
+        where TPointShape : class, IShape
     {
-        private Brush _stroke;
-        private double _strokeThickness;
-        private Brush _fill;
-        private IEnumerable<double> _strokeDashArray;
+        private Brush? _stroke;
+        private float _strokeThickness;
+        private Brush? _fill;
+        private IEnumerable<double>? _strokeDashArray;
 
         /// <inheritdoc />
         protected StrokeSeries()
         {
-            Charting.BuildFromTheme<IStrokeSeries>(this);
+            Global.Settings.BuildFromTheme<IStrokeSeries>(this);
         }
 
         /// <inheritdoc />
-        public Brush Stroke
+        public Brush? Stroke
         {
             get => _stroke;
             set
             {
                 _stroke = value;
-                OnPropertyChanged();
+                OnPropertyChanged(nameof(Stroke));
             }
         }
 
         /// <inheritdoc />
-        public double StrokeThickness
+        public float StrokeThickness
         {
             get => _strokeThickness;
             set
             {
                 _strokeThickness = value;
-                OnPropertyChanged();
+                OnPropertyChanged(nameof(StrokeThickness));
             }
         }
 
         /// <inheritdoc />
-        public IEnumerable<double> StrokeDashArray
+        public IEnumerable<double>? StrokeDashArray
         {
             get => _strokeDashArray;
             set
             {
                 _strokeDashArray = value;
-                OnPropertyChanged();
+                OnPropertyChanged(nameof(StrokeDashArray));
             }
         }
 
         /// <inheritdoc />
-        public Brush Fill
+        public Brush? Fill
         {
             get => _fill;
             set
             {
                 _fill = value;
-                OnPropertyChanged();
-            }
-        }
-
-        /// <inheritdoc />
-        public override SeriesStyle Style
-        {
-            get
-            {
-                return new SeriesStyle
-                {
-                    Fill = Fill,
-                    Stroke = Stroke,
-                    StrokeThickness = StrokeThickness,
-                    StrokeDashArray = StrokeDashArray?.Select(x => (float) x)
-                };
+                OnPropertyChanged(nameof(Fill));
             }
         }
 
         /// <inheritdoc />
         protected override void SetDefaultColors(ChartModel chart)
         {
-            if (!(Stroke == null || Fill == null)) return;
+            if (!(Stroke == null || Fill == null))
+            {
+                return;
+            }
 
             var nextColor = chart.GetNextColor();
 
             if (Stroke == null)
             {
-                Stroke = new SolidColorBrush(nextColor);
+                Stroke = new SolidColorBrush(
+                    nextColor.A, nextColor.R, nextColor.G, nextColor.B);
             }
 
             if (Fill == null)
             {
-                Fill = new SolidColorBrush(nextColor.SetOpacity(DefaultFillOpacity));
+                Fill = new SolidColorBrush(
+                    (byte)(DefaultFillOpacity * 255), nextColor.R, nextColor.G, nextColor.B);
             }
         }
     }

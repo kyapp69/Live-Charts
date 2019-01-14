@@ -28,24 +28,22 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
-using System.Reflection;
 using System.Windows.Input;
-using LiveCharts.Core.Animations;
-using LiveCharts.Core.DataSeries;
-using LiveCharts.Core.Dimensions;
-using LiveCharts.Core.Drawing;
-using LiveCharts.Core.Drawing.Styles;
-using LiveCharts.Core.Interaction.Controls;
-using LiveCharts.Core.Interaction.Events;
+using LiveCharts.Animations;
+using LiveCharts.DataSeries;
+using LiveCharts.Dimensions;
+using LiveCharts.Drawing;
+using LiveCharts.Interaction.Controls;
+using LiveCharts.Interaction.Events;
 
 #endregion
 
-namespace LiveCharts.Core.Charts
+namespace LiveCharts.Charts
 {
     /// <summary>
     /// Defines a chart view
     /// </summary>
-    public interface IChartView : INotifyPropertyChanged, IDisposable
+    public interface IChartView : INotifyPropertyChanged, ICoreParentAnimatable, IDisposable
     {
         #region Events and Commands
 
@@ -133,7 +131,7 @@ namespace LiveCharts.Core.Charts
         /// <value>
         /// The content.
         /// </value>
-        IChartContent Content { get; set; }
+        ICanvas Canvas { get; set; }
         
         /// <summary>
         /// Gets the size of the control.
@@ -150,7 +148,7 @@ namespace LiveCharts.Core.Charts
         /// <value>
         /// The draw margin.
         /// </value>
-        Margin DrawMargin { get; }
+        Padding DrawMargin { get; }
 
         /// <summary>
         /// Gets the plane sets.
@@ -175,22 +173,6 @@ namespace LiveCharts.Core.Charts
         /// The state of the updater.
         /// </value>
         UpdaterStates UpdaterState { get; set; }
-
-        /// <summary>
-        /// Gets or sets the animations speed.
-        /// </summary>
-        /// <value>
-        /// The animations speed.
-        /// </value>
-        TimeSpan AnimationsSpeed { get; set; }
-
-        /// <summary>
-        /// Gets or sets the animation line.
-        /// </summary>
-        /// <value>
-        /// The animation line.
-        /// </value>
-        IEnumerable<KeyFrame> AnimationLine { get; set; }
 
         /// <summary>
         /// Gets or sets the tooltip time out.
@@ -244,6 +226,16 @@ namespace LiveCharts.Core.Charts
         /// </summary>
         /// <param name="action">The action.</param>
         void InvokeOnUiThread(Action action);
+
+        /// <summary>
+        /// Attempts to capture the pointer.
+        /// </summary>
+        void CapturePointer();
+
+        /// <summary>
+        /// Releases the pointer capture.
+        /// </summary>
+        void ReleasePointerCapture();
 
         #endregion
     }

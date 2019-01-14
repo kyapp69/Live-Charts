@@ -25,12 +25,12 @@
 #region
 
 using System;
-using LiveCharts.Core.Coordinates;
-using LiveCharts.Core.Interaction.Events;
+using LiveCharts.Coordinates;
+using LiveCharts.Interaction.Events;
 
 #endregion
 
-namespace LiveCharts.Core.Interaction.Series
+namespace LiveCharts.Interaction.Series
 {
     /// <summary>
     /// the model state class.
@@ -40,6 +40,17 @@ namespace LiveCharts.Core.Interaction.Series
     public class ModelState<TModel, TCoordinate>
         where TCoordinate : ICoordinate
     {
+        /// <summary>
+        /// Initializes a new intance of the <see cref="ModelState{TModel, TCoordinate}"/> class.
+        /// </summary>
+        /// <param name="trigger"></param>
+        /// <param name="handler"></param>
+        public ModelState(Func<TModel, bool> trigger, ModelStateHandler<TModel, TCoordinate> handler)
+        {
+            Trigger = trigger;
+            Handler = handler;
+        }
+
         /// <summary>
         /// Gets or sets the condition.
         /// </summary>

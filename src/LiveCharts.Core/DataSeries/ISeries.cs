@@ -29,74 +29,30 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
-using LiveCharts.Core.Animations;
-using LiveCharts.Core.Charts;
-using LiveCharts.Core.Coordinates;
-using LiveCharts.Core.Drawing;
-using LiveCharts.Core.Drawing.Styles;
-using LiveCharts.Core.Interaction.Controls;
-using LiveCharts.Core.Interaction.Points;
-using LiveCharts.Core.Interaction.Series;
-using LiveCharts.Core.Updating;
-using Brush = LiveCharts.Core.Drawing.Brush;
+using LiveCharts.Animations;
+using LiveCharts.Charts;
+using LiveCharts.Coordinates;
+using LiveCharts.Drawing.Brushes;
+using LiveCharts.Drawing.Shapes;
+using LiveCharts.Drawing.Styles;
+using LiveCharts.Interaction.Controls;
+using LiveCharts.Interaction.Points;
+using LiveCharts.Interaction.Series;
+using LiveCharts.Updating;
 #if NET45 || NET46
-using Font = LiveCharts.Core.Drawing.Styles.Font;
+using Font = LiveCharts.Drawing.Styles.Font;
+using Brush = LiveCharts.Drawing.Brushes.Brush;
 #endif
 
 #endregion
 
-namespace LiveCharts.Core.DataSeries
+namespace LiveCharts.DataSeries
 {
-    /// <summary>
-    /// The series interface.
-    /// </summary>
-    /// <typeparam name="TModel">The type of the model.</typeparam>
-    /// <typeparam name="TCoordinate">The type of the coordinate.</typeparam>
-    /// <typeparam name="TSeries">The type of the series.</typeparam>
-    /// <typeparam name="TViewModel">The type of the view model.</typeparam>
-    /// <seealso cref="ISeries" />
-    public interface ISeries<TModel, TCoordinate, TViewModel, TSeries> : ISeries<TCoordinate>
-        where TCoordinate : ICoordinate
-        where TSeries : ISeries
-    {
-        /// <summary>
-        /// Gets or sets the mapper.
-        /// </summary>
-        /// <value>
-        /// The mapper.
-        /// </value>
-        ModelToCoordinateMapper<TModel, TCoordinate> Mapper { get; set; }
-
-        /// <summary>
-        /// Gets the points count.
-        /// </summary>
-        /// <value>
-        /// The points count.
-        /// </value>
-        int PointsCount { get; }
-
-        /// <summary>
-        /// Gets the view provider.
-        /// </summary>
-        /// <value>
-        /// The view provider.
-        /// </value>
-        ISeriesViewProvider<TModel, TCoordinate, TViewModel, TSeries> ViewProvider { get; set; }
-        
-        /// <summary>
-        /// Gets the points for the given view.
-        /// </summary>
-        /// <value>
-        /// The points.
-        /// </value>
-        IEnumerable<ChartPoint<TModel, TCoordinate, TViewModel, TSeries>> GetPoints(IChartView chart);
-    }
-
     /// <summary>
     /// A series with a defined coordinate.
     /// </summary>
     /// <typeparam name="TCoordinate">The type of the coordinate.</typeparam>
-    /// <seealso cref="LiveCharts.Core.DataSeries.ISeries" />
+    /// <seealso cref="ISeries" />
     public interface ISeries<TCoordinate> : ISeries
         where TCoordinate : ICoordinate
     {
@@ -106,7 +62,7 @@ namespace LiveCharts.Core.DataSeries
         /// <value>
         /// The data label formatter.
         /// </value>
-        Func<TCoordinate, string> DataLabelFormatter { get; set; }
+        Func<TCoordinate, string>? DataLabelFormatter { get; set; }
 
         /// <summary>
         /// Gets or sets the tooltip formatter, a delegate that will build the coordinate in the tooltip.
@@ -114,14 +70,14 @@ namespace LiveCharts.Core.DataSeries
         /// <value>
         /// The tooltip formatter.
         /// </value>
-        Func<TCoordinate, string> TooltipFormatter { get; set; }
+        Func<TCoordinate, string>? TooltipFormatter { get; set; }
     }
 
 
     /// <summary>
     /// The series interface.
     /// </summary>
-    public interface ISeries : IResource, INotifyPropertyChanged
+    public interface ISeries : IResource, INotifyPropertyChanged, ICoreChildAnimatable
     {
         /// <summary>
         /// Gets the resource key, the type used to style this element.
@@ -207,14 +163,6 @@ namespace LiveCharts.Core.DataSeries
         Geometry Geometry { get; set; }
 
         /// <summary>
-        /// Gets the series style.
-        /// </summary>
-        /// <value>
-        /// The series style.
-        /// </value>
-        SeriesStyle Style { get; }
-
-        /// <summary>
         /// Gets or sets a value indicating whether this instance is visible.
         /// </summary>
         /// <value>
@@ -229,30 +177,6 @@ namespace LiveCharts.Core.DataSeries
         /// The title.
         /// </value>
         string Title { get; set; }
-
-        /// <summary>
-        /// Gets or sets the animations speed.
-        /// </summary>
-        /// <value>
-        /// The animations speed.
-        /// </value>
-        TimeSpan AnimationsSpeed { get; set; }
-
-        /// <summary>
-        /// Gets or sets the animation line.
-        /// </summary>
-        /// <value>
-        /// The animation line.
-        /// </value>
-        IEnumerable<KeyFrame> AnimationLine { get; set; }
-
-        /// <summary>
-        /// Gets or sets the delay rule.
-        /// </summary>
-        /// <value>
-        /// The delay rule.
-        /// </value>
-        DelayRules DelayRule { get; set; }
 
         /// <summary>
         /// Gets the index of the group, -1 indicates that the series is not grouped.
@@ -280,6 +204,14 @@ namespace LiveCharts.Core.DataSeries
         float PointMargin { get; }
 
         /// <summary>
+        /// Gets or sets the delay rule.
+        /// </summary>
+        /// <value>
+        /// The delay rule.
+        /// </value>
+        DelayRules DelayRule { get; set; }
+
+        /// <summary>
         /// Fetches the specified chart.
         /// </summary>
         /// <param name="chart">The chart.</param>
@@ -300,7 +232,7 @@ namespace LiveCharts.Core.DataSeries
         /// <param name="snapToClosest">Specifies if the result should only get the closest point.</param>
         /// <param name="chart">The chart view.</param>
         /// <returns></returns>
-        IEnumerable<IChartPoint> GetPointsAt(PointF pointerLocation, ToolTipSelectionMode selectionMode, bool snapToClosest, IChartView chart);
+        IEnumerable<IChartPoint>? GetPointsAt(PointF pointerLocation, ToolTipSelectionMode selectionMode, bool snapToClosest, IChartView chart);
 
         /// <summary>
         /// Highlights a point.

@@ -25,33 +25,34 @@
 
 #region
 
+using LiveCharts.Animations;
+using LiveCharts.Charts;
+using LiveCharts.Coordinates;
+using LiveCharts.Drawing;
+using LiveCharts.Drawing.Shapes;
+using LiveCharts.Interaction;
+using LiveCharts.Interaction.Areas;
+using LiveCharts.Interaction.Points;
+using LiveCharts.Updating;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
-using LiveCharts.Core.Animations;
-using LiveCharts.Core.Charts;
-using LiveCharts.Core.Coordinates;
-using LiveCharts.Core.Drawing;
-using LiveCharts.Core.Interaction;
-using LiveCharts.Core.Interaction.ChartAreas;
-using LiveCharts.Core.Interaction.Points;
-using LiveCharts.Core.Interaction.Series;
-using LiveCharts.Core.Updating;
+#if NET45 || NET46
+using Brush = LiveCharts.Drawing.Brushes.Brush;
+#endif
 
 #endregion
 
-namespace LiveCharts.Core.DataSeries
+namespace LiveCharts.DataSeries
 {
     /// <summary>
     /// The scatter series class.
     /// </summary>
     /// <typeparam name="TModel">The type of the model.</typeparam>
-    /// <seealso cref="CartesianStrokeSeries{TModel,TCoordinate,TViewModel, TSeries}" />
+    /// <seealso cref="CartesianStrokeSeries{TModel,TCoordinate,TPointShape}" />
     /// <seealso cref="IScatterSeries" />
     public class ScatterSeries<TModel>
-        : CartesianStrokeSeries<TModel, PointCoordinate, GeometryPointViewModel, IScatterSeries>, IScatterSeries
+        : CartesianStrokeSeries<TModel, PointCoordinate, ISvgPath>, IScatterSeries
     {
-        private ISeriesViewProvider<TModel, PointCoordinate, GeometryPointViewModel, IScatterSeries> _provider;
         private double _geometrySize;
 
         /// <summary>
@@ -65,8 +66,8 @@ namespace LiveCharts.Core.DataSeries
             DataLabelFormatter = coordinate =>
                 $"{Format.AsMetricNumber(coordinate.X)}, {Format.AsMetricNumber(coordinate.Y)}";
             TooltipFormatter = DataLabelFormatter;
-            Charting.BuildFromTheme<IScatterSeries>(this);
-            Charting.BuildFromTheme<ISeries<PointCoordinate>>(this);
+            Global.Settings.BuildFromTheme<IScatterSeries>(this);
+            Global.Settings.BuildFromTheme<ISeries<PointCoordinate>>(this);
         }
 
         /// <summary>
@@ -81,7 +82,7 @@ namespace LiveCharts.Core.DataSeries
             set
             {
                 _geometrySize = value;
-                OnPropertyChanged();
+                OnPropertyChanged(nameof(GeometrySize));
             }
         }
 
@@ -89,21 +90,15 @@ namespace LiveCharts.Core.DataSeries
         public override Type ThemeKey => typeof(IScatterSeries);
 
         /// <inheritdoc />
-        public override float[] DefaultPointWidth => new[] {0f, 0f};
+        public override float[] DefaultPointWidth => new[] { 0f, 0f };
 
         /// <inheritdoc />
-        public override float PointMargin => (float) GeometrySize;
-
-        /// <inheritdoc />
-        protected override ISeriesViewProvider<TModel, PointCoordinate, GeometryPointViewModel, IScatterSeries>
-            DefaultViewProvider => _provider ??
-                                   (_provider = Charting.Settings.UiProvider
-                                       .GeometryPointViewProvider<TModel, PointCoordinate, IScatterSeries>());
+        public override float PointMargin => (float)GeometrySize;
 
         /// <inheritdoc />
         public override void UpdateView(ChartModel chart, UpdateContext context)
         {
-            var cartesianChart = (CartesianChartModel) chart;
+            var cartesianChart = (CartesianChartModel)chart;
             var x = cartesianChart.Dimensions[0][ScalesAt[0]];
             var y = cartesianChart.Dimensions[1][ScalesAt[1]];
 
@@ -114,25 +109,14 @@ namespace LiveCharts.Core.DataSeries
                 yi = 0;
             }
 
-            float r = (float) GeometrySize * .5f;
+            float r = (float)GeometrySize * .5f;
 
-            ChartPoint<TModel, PointCoordinate, GeometryPointViewModel, IScatterSeries> previous = null;
-            var timeLine = new TimeLine
-            {
-                Duration = AnimationsSpeed == TimeSpan.MaxValue ? chart.View.AnimationsSpeed : AnimationsSpeed,
-                AnimationLine = AnimationLine ?? chart.View.AnimationLine
-            };
-            float originalDuration = (float)timeLine.Duration.TotalMilliseconds;
-            IEnumerable<KeyFrame> originalAnimationLine = timeLine.AnimationLine;
+            ChartPoint<TModel, PointCoordinate, ISvgPath>? previous = null;
+            var animation = AnimatableArguments.BuildFrom(chart.View, this);
             int i = 0;
 
-            foreach (ChartPoint<TModel, PointCoordinate, GeometryPointViewModel, IScatterSeries> current in GetPoints(chart.View))
+            foreach (ChartPoint<TModel, PointCoordinate, ISvgPath> current in GetPoints(chart.View))
             {
-                if (current.View == null)
-                {
-                    current.View = ViewProvider.GetNewPoint();
-                }
-
                 float[] p = new[]
                 {
                     chart.ScaleToUi(current.Coordinate[0][0], x),
@@ -142,28 +126,78 @@ namespace LiveCharts.Core.DataSeries
                 var vm = new GeometryPointViewModel
                 {
                     Location = new PointF(p[xi] - r, p[yi] - r),
-                    Diameter = (float) GeometrySize
+                    Diameter = (float)GeometrySize
                 };
 
                 if (DelayRule != DelayRules.None)
                 {
-                    timeLine = AnimationExtensions.Delay(
-                        // ReSharper disable once PossibleMultipleEnumeration
-                        originalDuration, originalAnimationLine, i / (float)PointsCount, DelayRule);
+                    animation.SetDelay(DelayRule, i / (double)PointsCount);
                 }
 
-                current.ViewModel = vm;
-                current.View.DrawShape(current, previous, timeLine);
-                if (DataLabels) current.View.DrawLabel(current, DataLabelsPosition, LabelsStyle, timeLine);
-                Mapper.EvaluateModelDependentActions(current.Model, current.View.VisualElement, current);
+                DrawPointShape(current, animation, vm);
+
+                if (DataLabels)
+                {
+                    DrawPointLabel(current);
+                }
+
+                Mapper.EvaluateModelDependentActions(current.Model, current.Shape, current);
+
                 current.InteractionArea = new RectangleInteractionArea(
-                    new RectangleF(
+                    new RectangleD(
                         vm.Location.X,
                         vm.Location.Y,
-                        (float) GeometrySize,
-                        (float) GeometrySize));
+                        GeometrySize,
+                        GeometrySize));
+
                 previous = current;
                 i++;
+            }
+        }
+
+        private void DrawPointShape(
+            ChartPoint<TModel, PointCoordinate, ISvgPath> current,
+            AnimatableArguments animationArgs,
+            GeometryPointViewModel vm)
+        {
+            var shape = current.Shape;
+            bool isNew = current.Shape == null;
+
+            if (shape == null)
+            {
+                current.Shape = UIFactory.GetNewSvgPath(current.Chart.Model);
+                shape = current.Shape;
+                current.Shape.FlushToCanvas(current.Chart.Canvas, true);
+                shape.Left = vm.Location.X;
+                shape.Top = vm.Location.Y;
+                shape.Width = 0;
+                shape.Height = 0;
+            }
+
+            shape.Svg = Geometry.Data;
+            shape.StrokeDashArray = StrokeDashArray;
+            shape.StrokeThickness = StrokeThickness;
+            shape.ZIndex = ZIndex;
+            shape.Fill = Fill;
+            shape.Stroke = Stroke;
+
+            float r = vm.Diameter * .5f;
+
+            if (isNew)
+            {
+                shape.Animate(animationArgs)
+                    .Property(nameof(ISvgPath.Left), vm.Location.X + r, vm.Location.X)
+                    .Property(nameof(ISvgPath.Top), vm.Location.Y + r, vm.Location.Y)
+                    .Property(nameof(ISvgPath.Width), 0, vm.Diameter)
+                    .Property(nameof(ISvgPath.Height), 0, vm.Diameter)
+                    .Begin();
+            }
+            else
+            {
+                shape.Animate(animationArgs)
+                    .Property(nameof(ISvgPath.Left), shape.Left, vm.Location.X)
+                    .Property(nameof(ISvgPath.Top), shape.Top, vm.Location.Y)
+                    .Begin();
             }
         }
     }

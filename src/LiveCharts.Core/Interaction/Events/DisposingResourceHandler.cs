@@ -24,20 +24,17 @@
 #endregion
 #region
 
-#endregion
-
-#region
-
-using LiveCharts.Core.Charts;
+using LiveCharts.Charts;
 
 #endregion
 
-namespace LiveCharts.Core.Interaction.Events
+namespace LiveCharts.Interaction.Events
 {
     /// <summary>
     /// Disposing resource delegate.
     /// </summary>
     /// <param name="view">The view.</param>
-    /// <param name="instance">The sender instance.</param>
-    public delegate void DisposingResourceHandler(IChartView view, object instance);
+    /// <param name="sender">The sender instance.</param>
+    /// /// <param name="force">Indicates if the update is forced.</param>
+    public delegate void DisposingResourceHandler(IChartView view, object sender, bool force);
 }

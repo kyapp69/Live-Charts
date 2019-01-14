@@ -25,27 +25,29 @@
 
 #region
 
-using System;
-using LiveCharts.Core.Charts;
-using LiveCharts.Core.Drawing;
-using LiveCharts.Core.Drawing.Styles;
-using LiveCharts.Core.Interaction.Dimensions;
-using LiveCharts.Core.Interaction.Events;
+using System.Collections.Generic;
+using System.Drawing;
+using LiveCharts.Animations;
+using LiveCharts.Charts;
+using LiveCharts.Drawing;
+using LiveCharts.Drawing.Brushes;
+using LiveCharts.Drawing.Shapes;
+using LiveCharts.Drawing.Styles;
+using LiveCharts.Interaction.Events;
 #if NET45 || NET46
-using Font = LiveCharts.Core.Drawing.Styles.Font;
+using Font = LiveCharts.Drawing.Styles.Font;
+using Brush = LiveCharts.Drawing.Brushes.Brush;
 #endif
 
 #endregion
 
-namespace LiveCharts.Core.Dimensions
+namespace LiveCharts.Dimensions
 {
     /// <summary>
     /// Defines a section in an axis.
     /// </summary>
     public class Section : IResource
     {
-        private IPlaneViewProvider _viewProvider;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="Section"/> class.
         /// </summary>
@@ -78,7 +80,7 @@ namespace LiveCharts.Core.Dimensions
         /// <value>
         /// The stroke.
         /// </value>
-        public Brush Stroke { get; set; }
+        public Brush? Stroke { get; set; }
 
         /// <summary>
         /// Gets or sets the stroke thickness.
@@ -94,7 +96,7 @@ namespace LiveCharts.Core.Dimensions
         /// <value>
         /// The stroke dash array.
         /// </value>
-        public float[] StrokeDashArray { get; set; }
+        public IEnumerable<double>? StrokeDashArray { get; set; }
 
         /// <summary>
         /// Gets or sets the fill.
@@ -102,7 +104,7 @@ namespace LiveCharts.Core.Dimensions
         /// <value>
         /// The fill.
         /// </value>
-        public Brush Fill { get; set; }
+        public Brush? Fill { get; set; }
 
         /// <summary>
         /// Gets or sets the font.
@@ -118,7 +120,7 @@ namespace LiveCharts.Core.Dimensions
         /// <value>
         /// The content of the label.
         /// </value>
-        public object LabelContent { get; set; }
+        public string LabelContent { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the label vertical alignment.
@@ -137,32 +139,70 @@ namespace LiveCharts.Core.Dimensions
         public HorizontalAlignment LabelHorizontalAlignment { get; set; }
 
         /// <summary>
-        /// Gets the view.
+        /// Gets the shape in the UI.
         /// </summary>
-        /// <value>
-        /// The view.
-        /// </value>
-        public IPlaneSeparatorView View { get; internal set; }
+        public IRectangle? Shape { get; internal set; }
 
         /// <summary>
-        /// Gets or sets the view provider.
+        /// Gets the label in the UI.
         /// </summary>
-        /// <value>
-        /// The view provider.
-        /// </value>
-        public IPlaneViewProvider ViewProvider
+        public ILabel? Label { get; internal set; }
+
+        internal void DrawLabel(IChartView chart, AnimatableArguments animationArgs, PointF pos)
         {
-            get => _viewProvider ?? (_viewProvider = DefaultViewProvider());
-            set => _viewProvider = value;
+            if (Label == null)
+            {
+                Label = UIFactory.GetNewLabel(chart.Model);
+                Label.FlushToCanvas(chart.Canvas, false);
+                Label.Left = pos.X;
+                Label.Top = pos.Y;
+            }
+
+            Label.Foreground = Stroke;
+
+            Label.Animate(animationArgs)
+                .Property(nameof(ILabel.Left), Label.Left, pos.X)
+                .Property(nameof(ILabel.Top), Label.Top, pos.Y)
+                .Begin();
         }
 
-        /// <summary>
-        /// Specifies the default ui provider.
-        /// </summary>
-        /// <returns></returns>
-        protected virtual IPlaneViewProvider DefaultViewProvider()
+        internal void DrawShape(
+            IChartView chart, AnimatableArguments animationArgs, RectangleViewModel vm)
         {
-            return Charting.Settings.UiProvider.GetNewSection();
+            if (Shape == null)
+            {
+                Shape = UIFactory.GetNewRectangle(chart.Model);
+                Shape.FlushToCanvas(chart.Canvas, true);
+                Shape.Left = vm.From.Left;
+                Shape.Top = vm.From.Top;
+                Shape.Width = vm.From.Width;
+                Shape.Height = vm.From.Height;
+                Shape.ZIndex = int.MinValue + 1;
+
+                Shape.Animate(animationArgs)
+                    .Property(nameof(IShape.Opacity), 0, 1)
+                    .Begin();
+            }
+
+            Shape.StrokeDashArray = StrokeDashArray;
+            Shape.StrokeThickness = StrokeThickness;
+            Shape.Fill = Fill;
+            Shape.Stroke = Stroke;
+
+            Shape.Animate(animationArgs)
+                .Property(nameof(IShape.Top), Shape.Top, vm.To.Top)
+                .Property(nameof(IShape.Left), Shape.Left, vm.To.Left)
+                .Property(nameof(IShape.Height),
+                    Shape.Height,
+                    vm.To.Height > StrokeThickness
+                        ? vm.To.Height
+                        : StrokeThickness)
+                .Property(nameof(IShape.Width),
+                    Shape.Width,
+                    vm.To.Width > StrokeThickness
+                        ? vm.To.Width
+                        : StrokeThickness)
+               .Begin();
         }
 
         #region IResource implementation
@@ -170,11 +210,11 @@ namespace LiveCharts.Core.Dimensions
         /// <inheritdoc />
         public event DisposingResourceHandler Disposed;
 
-        object IResource.UpdateId { get; set; }
+        object IResource.UpdateId { get; set; } = new object();
 
         void IResource.Dispose(IChartView view, bool force)
         {
-            View.Dispose(view, force);
+            Disposed?.Invoke(view, this, force);
         }
 
         #endregion

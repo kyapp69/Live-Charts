@@ -22,7 +22,7 @@ namespace Samples.Wpf.Views
             // in this case we will build a chart using the Player class
             // we need to teach LiveCharts how to map a player to a chart coordinate.
 
-            Charting.Configure(charting =>
+            LiveCharts.Core.Charts.Configure(charting =>
             {
                 // we will map player to a point in a chart
                 // where the X coordinate will be the index of the player in our data collection
@@ -39,7 +39,7 @@ namespace Samples.Wpf.Views
                 playerMapper
                     .When(
                         player => player.Score > 0, // when the score is greater than 0
-                        (sender, args) =>
+                        (sender, LiveCharts.Core.Interaction.Events.ModelStateEventArgs<Player, PointCoordinate> args) =>
                         {
                             // when score > 0 we are changing the visual stroke property to blue.
 
@@ -52,24 +52,24 @@ namespace Samples.Wpf.Views
                             // notice the geared version uses a different shape!
 #if GEARED
                             var shape = (LiveCharts.Wpf.Geared.Drawing.Shapes.Path) args.Shape;
-                            shape.Stroke = blueBrush.AsGearedBrush();
+                            // shape.Stroke = blueBrush.AsGearedBrush();
 #else
                             var shape = (System.Windows.Shapes.Path) args.Shape;
-                            shape.Stroke = blueBrush.AsWpf();
+                            shape.Stroke = blueBrush.AsWpfBrush();
 #endif
                         })
                     .When(
                         player => player.Score <= 0, // when lt or eq to 0
-                        (sender, args) =>
+                        (sender, LiveCharts.Core.Interaction.Events.ModelStateEventArgs<Player, PointCoordinate> args) =>
                         {
                             var redBrush = LiveCharts.Core.Drawing.Brushes.Red;
 
 #if GEARED
                             var shape = (LiveCharts.Wpf.Geared.Drawing.Shapes.Path) args.Shape;
-                            shape.Stroke = redBrush.AsGearedBrush();
+                            // shape.Stroke = redBrush.AsGearedBrush();
 #else
                             var shape = (System.Windows.Shapes.Path) args.Shape;
-                            shape.Stroke = redBrush.AsWpf();
+                            shape.Stroke = redBrush.AsWpfBrush();
 #endif
                         });
 

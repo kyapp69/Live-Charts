@@ -24,17 +24,16 @@
 #endregion
 #region
 
-using System.Drawing;
-using LiveCharts.Core.Interaction.Controls;
+using LiveCharts.Drawing.Shapes;
 
 #endregion
 
-namespace LiveCharts.Core.Drawing
+namespace LiveCharts.Drawing
 {
     /// <summary>
     /// A bezier view model.
     /// </summary>
-    public class BezierViewModel
+    internal class BezierViewModel
     {
         /// <summary>
         /// Gets or sets the index.
@@ -50,15 +49,7 @@ namespace LiveCharts.Core.Drawing
         /// <value>
         /// The location.
         /// </value>
-        public PointF Location { get; set; }
-
-        /// <summary>
-        /// Gets or sets the path.
-        /// </summary>
-        /// <value>
-        /// The path.
-        /// </value>
-        public ICartesianPath Path { get; set; }
+        public PointD Location { get; set; }
 
         /// <summary>
         /// Gets or sets the geometry.
@@ -82,7 +73,7 @@ namespace LiveCharts.Core.Drawing
         /// <value>
         /// The point1.
         /// </value>
-        public PointF Point1 { get; set; }
+        public PointD Point1 { get; set; }
 
         /// <summary>
         /// Gets or sets the point2.
@@ -90,7 +81,7 @@ namespace LiveCharts.Core.Drawing
         /// <value>
         /// The point2.
         /// </value>
-        public PointF Point2 { get; set; }
+        public PointD Point2 { get; set; }
 
         /// <summary>
         /// Gets or sets the point3.
@@ -98,7 +89,7 @@ namespace LiveCharts.Core.Drawing
         /// <value>
         /// The point3.
         /// </value>
-        public PointF Point3 { get; set; }
+        public PointD Point3 { get; set; }
 
         /// <summary>
         /// Gets or sets the length of the aprox.

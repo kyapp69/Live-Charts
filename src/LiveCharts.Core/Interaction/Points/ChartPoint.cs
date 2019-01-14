@@ -24,58 +24,74 @@
 #endregion
 #region
 
-using LiveCharts.Core.Charts;
-using LiveCharts.Core.Coordinates;
-using LiveCharts.Core.DataSeries;
-using LiveCharts.Core.Interaction.ChartAreas;
-using LiveCharts.Core.Interaction.Events;
-
+using LiveCharts.Charts;
+using LiveCharts.Coordinates;
+using LiveCharts.DataSeries;
+using LiveCharts.Drawing.Shapes;
+using LiveCharts.Interaction.Areas;
+using LiveCharts.Interaction.Events;
 #endregion
 
-namespace LiveCharts.Core.Interaction.Points
+namespace LiveCharts.Interaction.Points
 {
     /// <summary>
     /// Represents a point int he chart.
     /// </summary>
-    /// <typeparam name="TModel">The type of the model.</typeparam>
-    /// <typeparam name="TCoordinate">The type of the coordinate.</typeparam>
-    /// <typeparam name="TViewModel">The type of the view model.</typeparam>
-    /// <typeparam name="TSeries">The type of the series.</typeparam>
+    /// <typeparam name="TModel">The type of the model to plot.</typeparam>
+    /// <typeparam name="TCoordinate">The type of the coordinate required by the series.</typeparam>
+    /// <typeparam name="TPointShape">The type of the point shape in hte UI.</typeparam>
     /// <seealso cref="T:System.IDisposable" />
-    public class ChartPoint<TModel, TCoordinate, TViewModel, TSeries> : IResource, IChartPoint<TModel, TCoordinate>
+    public class ChartPoint<TModel, TCoordinate, TPointShape>
+        : IResource, IChartPoint<TModel, TCoordinate>
         where TCoordinate : ICoordinate
-        where TSeries : ISeries
+        where TPointShape : class, IShape
+
     {
+        private static readonly TModel _defaultModel = default;
+        private static readonly TCoordinate _defaultCoordinate = default;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ChartPoint{TModel, TCoordinate, TPointShape}"/> class.
+        /// </summary>
+        /// <param name="series">the series</param>
+        /// <param name="chart">the chart</param>
+        public ChartPoint(ISeries series, IChartView chart)
+        {
+            Series = series;
+            Chart = chart;
+        }
+
         /// <inheritdoc />
         public int Key { get; internal set; }
 
         /// <inheritdoc />
-        public TModel Model { get; internal set; }
+        public TModel Model { get; internal set; } = ChartPoint<TModel, TCoordinate, TPointShape>._defaultModel;
 
-        object IChartPoint.Model => Model;
+        object? IChartPoint.Model => Model;
 
-        /// <inheritdoc cref="IChartPoint.ViewModel" />
-        public TViewModel ViewModel { get; internal set; }
+        /// <summary>
+        /// Gets the shape.
+        /// </summary>
+        /// <value>
+        /// The shape.
+        /// </value>
+        public TPointShape? Shape { get; internal set; }
 
-        object IChartPoint.ViewModel => ViewModel;
-
-        /// <inheritdoc cref="IChartPoint.View" />
-        public IPointView<TModel, TCoordinate, TViewModel, TSeries> View { get; internal set; }
-
-        object IChartPoint.View => View;
+        IShape? IChartPoint.Shape => Shape;
 
         /// <inheritdoc />
-        public TCoordinate Coordinate { get; internal set; }
+        public ILabel? Label { get; internal set; }
+
+        /// <inheritdoc />
+        public TCoordinate Coordinate { get; internal set; } = ChartPoint<TModel, TCoordinate, TPointShape>._defaultCoordinate;
 
         ICoordinate IChartPoint.Coordinate => Coordinate;
 
         /// <inheritdoc />
-        public InteractionArea InteractionArea { get; internal set; }
+        public InteractionArea InteractionArea { get; internal set; } = RectangleInteractionArea.Empty;
 
-        /// <inheritdoc cref="IChartView.Series" />
-        public TSeries Series { get; internal set; }
-
-        ISeries IChartPoint.Series => Series;
+        /// <inheritdoc />
+        public ISeries Series { get; internal set; }
 
         /// <inheritdoc />
         public IChartView Chart { get; internal set; }
@@ -97,12 +113,11 @@ namespace LiveCharts.Core.Interaction.Points
         /// <inheritdoc />
         public event DisposingResourceHandler Disposed;
 
-        object IResource.UpdateId { get; set; }
+        object IResource.UpdateId { get; set; } = new object();
 
         void IResource.Dispose(IChartView view, bool force)
         {
-            View?.Dispose(view, force);
-            Disposed?.Invoke(view, this);
+            Disposed?.Invoke(view, this, force);
         }
     }
 }

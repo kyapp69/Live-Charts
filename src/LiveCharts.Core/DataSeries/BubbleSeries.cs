@@ -24,30 +24,32 @@
 #endregion
 #region
 
+using LiveCharts.Animations;
+using LiveCharts.Charts;
+using LiveCharts.Coordinates;
+using LiveCharts.Drawing;
+using LiveCharts.Drawing.Shapes;
+using LiveCharts.Interaction;
+using LiveCharts.Interaction.Areas;
+using LiveCharts.Interaction.Points;
+using LiveCharts.Updating;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
-using LiveCharts.Core.Animations;
-using LiveCharts.Core.Charts;
-using LiveCharts.Core.Coordinates;
-using LiveCharts.Core.Drawing;
-using LiveCharts.Core.Interaction;
-using LiveCharts.Core.Interaction.ChartAreas;
-using LiveCharts.Core.Interaction.Points;
-using LiveCharts.Core.Interaction.Series;
-using LiveCharts.Core.Updating;
+#if NET45 || NET46
+using Brush = LiveCharts.Drawing.Brushes.Brush;
+#endif
 
 #endregion
 
-namespace LiveCharts.Core.DataSeries
+
+namespace LiveCharts.DataSeries
 {
     /// <summary>
     /// The bubble series class.
     /// </summary>
-    public class BubbleSeries<TModel> 
-        : CartesianStrokeSeries<TModel, WeightedCoordinate, GeometryPointViewModel, IBubbleSeries>, IBubbleSeries
+    public class BubbleSeries<TModel>
+        : CartesianStrokeSeries<TModel, WeightedCoordinate, ISvgPath>, IBubbleSeries
     {
-        private ISeriesViewProvider<TModel, WeightedCoordinate, GeometryPointViewModel, IBubbleSeries> _provider;
         private double _maxGeometrySize;
         private double _minGeometrySize;
 
@@ -56,7 +58,7 @@ namespace LiveCharts.Core.DataSeries
         /// </summary>
         public BubbleSeries()
         {
-            ScalesAt = new[] {0, 0, 0};
+            ScalesAt = new[] { 0, 0, 0 };
             MaxGeometrySize = 30f;
             MinGeometrySize = 14f;
             StrokeThickness = 1f;
@@ -64,8 +66,8 @@ namespace LiveCharts.Core.DataSeries
             DataLabelFormatter = coordinate =>
                 $"{Format.AsMetricNumber(coordinate.X)}, {Format.AsMetricNumber(coordinate.Y)}, {Format.AsMetricNumber(coordinate.Weight)}";
             TooltipFormatter = DataLabelFormatter;
-            Charting.BuildFromTheme<IBubbleSeries>(this);
-            Charting.BuildFromTheme<ISeries<WeightedCoordinate>>(this);
+            Global.Settings.BuildFromTheme<IBubbleSeries>(this);
+            Global.Settings.BuildFromTheme<ISeries<WeightedCoordinate>>(this);
         }
 
         /// <inheritdoc />
@@ -75,7 +77,7 @@ namespace LiveCharts.Core.DataSeries
             set
             {
                 _maxGeometrySize = value;
-                OnPropertyChanged();
+                OnPropertyChanged(nameof(MaxGeometrySize));
             }
         }
 
@@ -86,7 +88,7 @@ namespace LiveCharts.Core.DataSeries
             set
             {
                 _minGeometrySize = value;
-                OnPropertyChanged();
+                OnPropertyChanged(nameof(MinGeometrySize));
             }
         }
 
@@ -94,16 +96,10 @@ namespace LiveCharts.Core.DataSeries
         public override Type ThemeKey => typeof(IBubbleSeries);
 
         /// <inheritdoc />
-        public override float[] DefaultPointWidth => new []{0f,0f};
+        public override float[] DefaultPointWidth => new[] { 0f, 0f };
 
         /// <inheritdoc />
-        public override float PointMargin => (float) MaxGeometrySize;
-
-        /// <inheritdoc />
-        protected override ISeriesViewProvider<TModel, WeightedCoordinate, GeometryPointViewModel, IBubbleSeries>
-            DefaultViewProvider => _provider ??
-                                   (_provider = Charting.Settings.UiProvider
-                                       .GeometryPointViewProvider<TModel, WeightedCoordinate, IBubbleSeries>());
+        public override float PointMargin => (float)MaxGeometrySize;
 
         /// <inheritdoc />
         public override void UpdateView(ChartModel chart, UpdateContext context)
@@ -112,8 +108,8 @@ namespace LiveCharts.Core.DataSeries
             var x = cartesianChart.Dimensions[0][ScalesAt[0]];
             var y = cartesianChart.Dimensions[1][ScalesAt[1]];
 
-            var p1 = new PointF(context.Ranges[2][ScalesAt[2]][0], (float) MinGeometrySize);
-            var p2 = new PointF(context.Ranges[2][ScalesAt[2]][1], (float) MaxGeometrySize);
+            var p1 = new PointF(context.Ranges[2][ScalesAt[2]][0], (float)MinGeometrySize);
+            var p2 = new PointF(context.Ranges[2][ScalesAt[2]][1], (float)MaxGeometrySize);
 
             int xi = 0, yi = 1;
             if (chart.InvertXy)
@@ -122,23 +118,12 @@ namespace LiveCharts.Core.DataSeries
                 yi = 0;
             }
 
-            ChartPoint<TModel, WeightedCoordinate, GeometryPointViewModel, IBubbleSeries> previous = null;
-            var timeLine = new TimeLine
-            {
-                Duration = AnimationsSpeed == TimeSpan.MaxValue ? chart.View.AnimationsSpeed : AnimationsSpeed,
-                AnimationLine = AnimationLine ?? chart.View.AnimationLine
-            };
-            float originalDuration = (float) timeLine.Duration.TotalMilliseconds;
-            IEnumerable<KeyFrame> originalAnimationLine = timeLine.AnimationLine;
+            ChartPoint<TModel, WeightedCoordinate, ISvgPath>? previous = null;
+            var animationArgs = AnimatableArguments.BuildFrom(chart.View, this);
             int i = 0;
 
-            foreach (ChartPoint<TModel, WeightedCoordinate, GeometryPointViewModel, IBubbleSeries> current in GetPoints(chart.View))
+            foreach (ChartPoint<TModel, WeightedCoordinate, ISvgPath> current in GetPoints(chart.View))
             {
-                if (current.View == null)
-                {
-                    current.View = ViewProvider.GetNewPoint();
-                }
-
                 float[] p = new[]
                 {
                     chart.ScaleToUi(current.Coordinate[0][0], x),
@@ -156,17 +141,19 @@ namespace LiveCharts.Core.DataSeries
 
                 if (DelayRule != DelayRules.None)
                 {
-                    timeLine = AnimationExtensions.Delay(
-                        // ReSharper disable once PossibleMultipleEnumeration
-                        originalDuration, originalAnimationLine, i / (float)PointsCount, DelayRule);
+                    animationArgs.SetDelay(DelayRule, i / (double)PointsCount);
                 }
 
-                current.ViewModel = vm;
-                current.View.DrawShape(current, previous, timeLine);
-                if (DataLabels) current.View.DrawLabel(current, DataLabelsPosition, LabelsStyle, timeLine);
-                Mapper.EvaluateModelDependentActions(current.Model, current.View.VisualElement, current);
+                DrawPointShape(current, animationArgs, vm);
+
+                if (DataLabels)
+                {
+                    DrawPointLabel(current);
+                }
+
+                Mapper.EvaluateModelDependentActions(current.Model, current.Shape, current);
                 current.InteractionArea = new RectangleInteractionArea(
-                    new RectangleF(
+                    new RectangleD(
                         vm.Location.X,
                         vm.Location.Y,
                         p[2],
@@ -174,6 +161,50 @@ namespace LiveCharts.Core.DataSeries
 
                 previous = current;
                 i++;
+            }
+        }
+
+        private void DrawPointShape(
+            ChartPoint<TModel, WeightedCoordinate, ISvgPath> current,
+            AnimatableArguments animationArgs,
+            GeometryPointViewModel vm)
+        {
+            var isNew = current.Shape == null;
+
+            if (current.Shape == null)
+            {
+                current.Shape = UIFactory.GetNewSvgPath(current.Chart.Model);
+                current.Shape.FlushToCanvas(current.Chart.Canvas, true);
+                current.Shape.Left = vm.Location.X;
+                current.Shape.Top = vm.Location.Y;
+                current.Shape.Width = 0;
+                current.Shape.Height = 0;
+            }
+
+            current.Shape.Svg = Geometry.Data;
+            current.Shape.StrokeDashArray = StrokeDashArray;
+            current.Shape.StrokeThickness = StrokeThickness;
+            current.Shape.ZIndex = ZIndex;
+            current.Shape.Fill = Fill;
+            current.Shape.Stroke = Stroke;
+
+            var r = vm.Diameter * .5f;
+
+            if (isNew)
+            {
+                current.Shape.Animate(animationArgs)
+                    .Property(nameof(ISvgPath.Left), vm.Location.X + r, vm.Location.X)
+                    .Property(nameof(ISvgPath.Top), vm.Location.Y + r, vm.Location.Y)
+                    .Property(nameof(ISvgPath.Width), 0, vm.Diameter)
+                    .Property(nameof(ISvgPath.Height), 0, vm.Diameter)
+                    .Begin();
+            }
+            else
+            {
+                current.Shape.Animate(animationArgs)
+                    .Property(nameof(ISvgPath.Left), current.Shape.Left, vm.Location.X)
+                    .Property(nameof(ISvgPath.Top), current.Shape.Top, vm.Location.Y)
+                    .Begin();
             }
         }
     }

@@ -25,56 +25,56 @@
 
 #region
 
+using LiveCharts.Animations;
+using LiveCharts.Charts;
+using LiveCharts.Coordinates;
+using LiveCharts.Drawing;
+using LiveCharts.Drawing.Brushes;
+using LiveCharts.Drawing.Shapes;
+using LiveCharts.Interaction;
+using LiveCharts.Interaction.Areas;
+using LiveCharts.Interaction.Points;
+using LiveCharts.Updating;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using LiveCharts.Core.Animations;
-using LiveCharts.Core.Charts;
-using LiveCharts.Core.Coordinates;
-using LiveCharts.Core.Drawing;
-using LiveCharts.Core.Interaction;
-using LiveCharts.Core.Interaction.ChartAreas;
-using LiveCharts.Core.Interaction.Points;
-using LiveCharts.Core.Interaction.Series;
-using LiveCharts.Core.Updating;
 
 #endregion
 
-namespace LiveCharts.Core.DataSeries
+namespace LiveCharts.DataSeries
 {
     /// <summary>
     /// The heat series class.
     /// </summary>
     /// <typeparam name="TModel">The type of the model.</typeparam>
-    /// <seealso cref="CartesianStrokeSeries{TModel,TCoordinate,TViewModel, TSeries}" />
+    /// <seealso cref="CartesianStrokeSeries{TModel,TCoordinate,TPointShape}" />
     /// <seealso cref="IHeatSeries" />
     public class HeatSeries<TModel>
-        : CartesianStrokeSeries<TModel, WeightedCoordinate, HeatViewModel, IHeatSeries>, IHeatSeries
+        : CartesianStrokeSeries<TModel, WeightedCoordinate, IShape>, IHeatSeries
     {
-        private ISeriesViewProvider<TModel, WeightedCoordinate, HeatViewModel, IHeatSeries> _provider;
-        private IEnumerable<GradientStop> _gradient;
+        private IEnumerable<GradientStop>? _gradient;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="HeatSeries{TModel}"/> class.
         /// </summary>
         public HeatSeries()
         {
-            ScalesAt = new[] {0, 0, 0};
+            ScalesAt = new[] { 0, 0, 0 };
             DefaultFillOpacity = .2f;
             DataLabelFormatter = coordinate => $"{Format.AsMetricNumber(coordinate.Weight)}";
             TooltipFormatter = DataLabelFormatter;
-            Charting.BuildFromTheme<IHeatSeries>(this);
-            Charting.BuildFromTheme<ISeries<WeightedCoordinate>>(this);
+            Global.Settings.BuildFromTheme<IHeatSeries>(this);
+            Global.Settings.BuildFromTheme<ISeries<WeightedCoordinate>>(this);
         }
 
         /// <inheritdoc />
-        public IEnumerable<GradientStop> Gradient
+        public IEnumerable<GradientStop>? Gradient
         {
             get => _gradient;
             set
             {
                 _gradient = value;
-                OnPropertyChanged();
+                OnPropertyChanged(nameof(Gradient));
             }
         }
 
@@ -82,21 +82,15 @@ namespace LiveCharts.Core.DataSeries
         public override Type ThemeKey => typeof(IHeatSeries);
 
         /// <inheritdoc />
-        public override float[] DefaultPointWidth => new[] {1f, 1f};
+        public override float[] DefaultPointWidth => new[] { 1f, 1f };
 
         /// <inheritdoc />
         public override float PointMargin => 0f;
 
         /// <inheritdoc />
-        protected override ISeriesViewProvider<TModel, WeightedCoordinate, HeatViewModel, IHeatSeries>
-            DefaultViewProvider => _provider ?? (_provider = Charting.Settings.UiProvider.HeatViewProvider<TModel>());
-
-        public override SeriesStyle Style => new SeriesStyle(); // ToDo: How do we display it in the legend/tooltip ??
-
-        /// <inheritdoc />
         public override void UpdateView(ChartModel chart, UpdateContext context)
         {
-            var cartesianChart = (CartesianChartModel) chart;
+            var cartesianChart = (CartesianChartModel)chart;
             var x = cartesianChart.Dimensions[0][ScalesAt[0]];
             var y = cartesianChart.Dimensions[1][ScalesAt[1]];
 
@@ -110,7 +104,6 @@ namespace LiveCharts.Core.DataSeries
             }
 
             // ReSharper disable CompareOfFloatsByEqualityOperator
-
             double[] d = new[]
             {
                 x.InternalMaxValue - x.InternalMinValue == 0
@@ -122,61 +115,45 @@ namespace LiveCharts.Core.DataSeries
             };
 
             // ReSharper restore CompareOfFloatsByEqualityOperator
-
-            float wp = (float) (cartesianChart.DrawAreaSize[0] / d[xi]);
-            float hp = (float) (cartesianChart.DrawAreaSize[1] / d[yi]);
+            float wp = (float)(cartesianChart.DrawAreaSize[0] / d[xi]);
+            float hp = (float)(cartesianChart.DrawAreaSize[1] / d[yi]);
 
             float minW = context.Ranges[2][ScalesAt[2]][0];
             float maxW = context.Ranges[2][ScalesAt[2]][1];
 
-            ChartPoint<TModel, WeightedCoordinate, HeatViewModel, IHeatSeries> previous = null;
-            var timeLine = new TimeLine
-            {
-                Duration = AnimationsSpeed == TimeSpan.MaxValue ? chart.View.AnimationsSpeed : AnimationsSpeed,
-                AnimationLine = AnimationLine ?? chart.View.AnimationLine
-            };
-            float originalDuration = (float)timeLine.Duration.TotalMilliseconds;
-            IEnumerable<KeyFrame> originalAnimationLine = timeLine.AnimationLine;
+            var animation = AnimatableArguments.BuildFrom(chart.View, this);
             int i = 0;
 
-            foreach (ChartPoint<TModel, WeightedCoordinate, HeatViewModel, IHeatSeries> current in GetPoints(chart.View))
+            foreach (ChartPoint<TModel, WeightedCoordinate, IShape> current in GetPoints(chart.View))
             {
-                if (current.View == null)
-                {
-                    current.View = ViewProvider.GetNewPoint();
-                    current.ViewModel = new HeatViewModel
-                    {
-                        To = Color.FromArgb(0, 0, 0, 0)
-                    };
-                }
-
                 float[] p = new[]
                 {
                     chart.ScaleToUi(current.Coordinate[0][0], x) - uw[0] *.5f,
                     chart.ScaleToUi(current.Coordinate[1][0], y) - uw[1] *.5f
                 };
 
+                var scb = current.Shape?.Fill as SolidColorBrush;
+
                 var vm = new HeatViewModel
                 {
-                    Rectangle = new RectangleF(p[xi], p[yi], wp, hp),
-                    From = current.ViewModel.To,
+                    Rectangle = new RectangleD(p[xi], p[yi], wp, hp),
+                    From = scb?.Color ?? Color.FromArgb(255, 0, 0, 0),
                     To = ColorInterpolation(minW, maxW, current.Coordinate.Weight)
                 };
 
                 if (DelayRule != DelayRules.None)
                 {
-                    timeLine = AnimationExtensions.Delay(
-                        // ReSharper disable once PossibleMultipleEnumeration
-                        originalDuration, originalAnimationLine, i / (float)PointsCount, DelayRule);
+                    animation.SetDelay(DelayRule, i / (double)PointsCount);
                 }
 
-                current.ViewModel = vm;
-                current.View.DrawShape(current, previous, timeLine);
-                if (DataLabels) current.View.DrawLabel(current, DataLabelsPosition, LabelsStyle, timeLine);
-                Mapper.EvaluateModelDependentActions(current.Model, current.View.VisualElement, current);
-                current.InteractionArea = new RectangleInteractionArea(vm.Rectangle);
+                DrawPointShape(current, animation, vm);
+                if (DataLabels)
+                {
+                    DrawPointLabel(current);
+                }
 
-                previous = current;
+                Mapper.EvaluateModelDependentActions(current.Model, current.Shape, current);
+                current.InteractionArea = new RectangleInteractionArea(vm.Rectangle);
                 i++;
             }
         }
@@ -184,11 +161,14 @@ namespace LiveCharts.Core.DataSeries
         /// <inheritdoc />
         protected override void SetDefaultColors(ChartModel chart)
         {
-            if (Gradient != null) return;
+            if (Gradient != null)
+            {
+                return;
+            }
 
             var nextColor = chart.GetNextColor();
 
-            Gradient = new List<GradientStop>
+            _gradient = new List<GradientStop>
             {
                 new GradientStop
                 {
@@ -205,8 +185,10 @@ namespace LiveCharts.Core.DataSeries
 
         private Color ColorInterpolation(float min, float max, float current)
         {
+            if (_gradient == null) throw new Exception($"It was not possible call {nameof(ColorInterpolation)}() method, gradient is not specified.");
+
             float currentOffset = (current - min) / (max - min);
-            IEnumerator<GradientStop> enumerator = Gradient.GetEnumerator();
+            IEnumerator<GradientStop> enumerator = _gradient.GetEnumerator();
 
             if (!enumerator.MoveNext())
             {
@@ -227,16 +209,46 @@ namespace LiveCharts.Core.DataSeries
                             ((currentOffset - from.Offset) / (from.Offset - to.Offset));
 
                     return Color.FromArgb(
-                        (int) Math.Round(from.Color.A + p * (to.Color.A - from.Color.A)),
-                        (int) Math.Round(from.Color.R + p * (to.Color.R - from.Color.R)),
-                        (int) Math.Round(from.Color.G + p * (to.Color.G - from.Color.G)),
-                        (int) Math.Round(from.Color.B + p * (to.Color.B - from.Color.B)));
+                        (int)Math.Round(from.Color.A + p * (to.Color.A - from.Color.A)),
+                        (int)Math.Round(from.Color.R + p * (to.Color.R - from.Color.R)),
+                        (int)Math.Round(from.Color.G + p * (to.Color.G - from.Color.G)),
+                        (int)Math.Round(from.Color.B + p * (to.Color.B - from.Color.B)));
                 }
 
                 from = to;
             }
 
             throw new LiveChartsException(121, null);
+        }
+
+        private void DrawPointShape(
+            ChartPoint<TModel, WeightedCoordinate, IShape> current,
+            AnimatableArguments animationArgs,
+            HeatViewModel vm)
+        {
+            // initialize shape
+            if (current.Shape == null)
+            {
+                current.Shape = UIFactory.GetNewRectangle(current.Chart.Model);
+                current.Shape.FlushToCanvas(current.Chart.Canvas, true);
+                current.Shape.Fill = new SolidColorBrush(vm.From);
+            }
+
+            // map properties
+            current.Shape.Left = vm.Rectangle.Left;
+            current.Shape.Top = vm.Rectangle.Top;
+            current.Shape.Width = vm.Rectangle.Width;
+            current.Shape.Height = vm.Rectangle.Height;
+            current.Shape.ZIndex = ZIndex;
+
+            // animate
+            if (!(current.Shape.Fill is SolidColorBrush solidColorBrush)) throw new LiveChartsException(148);
+            current.Shape.Fill?.Animate(animationArgs)
+                .Property(
+                    nameof(SolidColorBrush.Color),
+                    solidColorBrush.Color,
+                    vm.To)
+                .Begin();
         }
     }
 }

@@ -34,34 +34,33 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Timers;
 using System.Windows.Input;
-using LiveCharts.Core.DataSeries;
-using LiveCharts.Core.Dimensions;
-using LiveCharts.Core.Drawing;
-using LiveCharts.Core.Drawing.Styles;
-using LiveCharts.Core.Interaction.Controls;
-using LiveCharts.Core.Interaction.Events;
-using LiveCharts.Core.Interaction.Points;
-using LiveCharts.Core.Updating;
+using LiveCharts.DataSeries;
+using LiveCharts.Dimensions;
+using LiveCharts.Drawing;
+using LiveCharts.Drawing.Styles;
+using LiveCharts.Interaction;
+using LiveCharts.Interaction.Controls;
+using LiveCharts.Interaction.Events;
+using LiveCharts.Interaction.Points;
+using LiveCharts.Updating;
 
 #endregion
 
-namespace LiveCharts.Core.Charts
+namespace LiveCharts.Charts
 {
     /// <summary>
     /// Defines a chart.
     /// </summary>
     public abstract class ChartModel : IDisposable
     {
-        private static int _colorCount;
-        private Task _delayer;
-        private IList<Color> _colors;
-        private HashSet<IResource> _resources = new HashSet<IResource>();
-
-        private Dictionary<IEnumerable, EnumerableResource> _enumerableResources =
+        private static int _colorCount;       
+        private Task _delayer = Task.FromResult(false);
+        private IList<Color> _colors = new List<Color>();
+        private readonly HashSet<IResource> _resources = new HashSet<IResource>();
+        private readonly Dictionary<IEnumerable, EnumerableResource> _enumerableResources =
             new Dictionary<IEnumerable, EnumerableResource>();
-
         private PointF _previousTooltipLocation = PointF.Empty;
-        private IEnumerable<IChartPoint> _previousHovered;
+        private IEnumerable<IChartPoint>? _previousHovered;
         private HashSet<IChartPoint> _previousEntered = new HashSet<IChartPoint>(Enumerable.Empty<IChartPoint>());
 
         /// <summary>
@@ -71,16 +70,15 @@ namespace LiveCharts.Core.Charts
         protected ChartModel(IChartView view)
         {
             View = view;
-            View.Content = Charting.Settings.UiProvider.GetChartContent(view);
-            view.Content.ContentLoaded += OnContentOnContentLoaded;
-            view.ViewResized += OnViewOnChartViewResized;
-            view.Content.PointerMoved += ViewOnPointerMoved;
-            view.Content.PointerDown += ViewOnPointerDown;
-            view.PropertyChanged += InvalidatePropertyChanged;
+            View.Canvas = UIFactory.GetNewChartContent(view);
+            view.Canvas.CanvasLoaded += OnCanvasLoaded;
+            view.ViewResized += OnViewOResized;
+            view.Canvas.PointerMoved += OnViewPointerMoved;
+            view.Canvas.PointerDown += OnViewPointerDown;
+            view.PropertyChanged += InvalidateOnPropertyChanged;
             ToolTipTimeoutTimer = new Timer();
-            ToolTipTimeoutTimer.Elapsed += OnToolTipTimeoutTimerOnElapsed;
-
-            Charting.BuildFromTheme(view);
+            ToolTipTimeoutTimer.Elapsed += OnToolTipTimeoutElapsed;
+            Global.Settings.BuildFromTheme(view);
         }
 
         /// <summary>
@@ -105,7 +103,7 @@ namespace LiveCharts.Core.Charts
         /// <value>
         /// The draw area location.
         /// </value>
-        public float[] DrawAreaLocation { get; set; }
+        public float[] DrawAreaLocation { get; set; } = new[] { 0f, 0f };
 
         /// <summary>
         /// Gets or sets the size of the draw area.
@@ -113,7 +111,7 @@ namespace LiveCharts.Core.Charts
         /// <value>
         /// The size of the draw area.
         /// </value>
-        public float[] DrawAreaSize { get; set; }
+        public float[] DrawAreaSize { get; set; } = new[] { 0f, 0f };
 
         /// <summary>
         /// Gets the chart view.
@@ -139,7 +137,7 @@ namespace LiveCharts.Core.Charts
         /// </value>
         public IList<Color> Colors
         {
-            get => _colors ?? Charting.Settings.Colors;
+            get => _colors ?? Global.Settings.Colors;
             set => _colors = value;
         }
 
@@ -162,7 +160,7 @@ namespace LiveCharts.Core.Charts
         /// <summary>
         /// Occurs before a chart update is called.
         /// </summary>
-        public ICommand UpdatePreviewCommand { get; set; }
+        public ICommand? UpdatePreviewCommand { get; set; }
 
         /// <summary>
         /// Occurs after a chart update was called.
@@ -172,7 +170,7 @@ namespace LiveCharts.Core.Charts
         /// <summary>
         /// Occurs after a chart update was called.
         /// </summary>
-        public ICommand UpdatedCommand { get; set; }
+        public ICommand? UpdatedCommand { get; set; }
 
         /// <summary>
         /// Occurs when the users pointer goes down over a data point.
@@ -186,7 +184,7 @@ namespace LiveCharts.Core.Charts
         /// <value>
         /// The data pointer down command.
         /// </value>
-        public ICommand DataPointerDownCommand { get; set; }
+        public ICommand? DataPointerDownCommand { get; set; }
 
         /// <summary>
         /// Occurs when [data pointer enter].
@@ -199,7 +197,7 @@ namespace LiveCharts.Core.Charts
         /// <value>
         /// The data pointer enter.
         /// </value>
-        public ICommand DataPointerEnteredCommand { get; set; }
+        public ICommand? DataPointerEnteredCommand { get; set; }
 
         /// <summary>
         /// Occurs when [data pointer leave].
@@ -212,7 +210,7 @@ namespace LiveCharts.Core.Charts
         /// <value>
         /// The data pointer leave command.
         /// </value>
-        public ICommand DataPointerLeftCommand { get; set; }
+        public ICommand? DataPointerLeftCommand { get; set; }
 
         /// <summary>
         /// Gets the series.
@@ -220,7 +218,7 @@ namespace LiveCharts.Core.Charts
         /// <value>
         /// The series.
         /// </value>
-        public ISeries[] Series { get; internal set; }
+        public ISeries[] Series { get; internal set; } = new ISeries[0];
 
         /// <summary>
         /// Gets the dimensions.
@@ -228,7 +226,7 @@ namespace LiveCharts.Core.Charts
         /// <value>
         /// The dimensions.
         /// </value>
-        public Plane[][] Dimensions { get; internal set; }
+        public Plane[][] Dimensions { get; internal set; } = new Plane[0][];
 
         /// <summary>
         /// Gets the size of the control.
@@ -236,7 +234,7 @@ namespace LiveCharts.Core.Charts
         /// <value>
         /// The size of the control.
         /// </value>
-        public float[] ControlSize { get; internal set; }
+        public float[] ControlSize { get; internal set; } = new float[] { 0f, 0f };
 
         /// <summary>
         /// Gets the draw margin.
@@ -244,7 +242,7 @@ namespace LiveCharts.Core.Charts
         /// <value>
         /// The draw margin.
         /// </value>
-        public Margin DrawMargin { get; internal set; }
+        public Padding DrawMargin { get; internal set; }
 
         /// <summary>
         /// Gets the animations speed.
@@ -260,7 +258,7 @@ namespace LiveCharts.Core.Charts
         /// <value>
         /// The legend.
         /// </value>
-        public ILegend Legend { get; internal set; }
+        public ILegend? Legend { get; internal set; }
 
         /// <summary>
         /// Gets the legend position.
@@ -322,23 +320,21 @@ namespace LiveCharts.Core.Charts
             View.InvokeOnUiThread(() =>
             {
                 CopyDataFromView();
-                using (var context = new UpdateContext(Series.Where(series => series.IsVisible)))
+
+                var context = new UpdateContext(Series.Where(series => series.IsVisible));
+                float[][][] dims = new float[Dimensions.Length][][];
+                for (int dimIndex = 0; dimIndex < Dimensions.Length; dimIndex++)
                 {
-                    float[][][] dims = new float[Dimensions.Length][][];
-                    for (int dimIndex = 0; dimIndex < Dimensions.Length; dimIndex++)
+                    Plane[] dimension = Dimensions[dimIndex];
+                    dims[dimIndex] = new float[dimension.Length][];
+                    for (int planeIndex = 0; planeIndex < dimension.Length; planeIndex++)
                     {
-                        Plane[] dimension = Dimensions[dimIndex];
-                        dims[dimIndex] = new float[dimension.Length][];
-                        for (int planeIndex = 0; planeIndex < dimension.Length; planeIndex++)
-                        {
-                            dims[dimIndex][planeIndex] = new[] {float.MaxValue, float.MinValue};
-                        }
+                        dims[dimIndex][planeIndex] = new[] { float.MaxValue, float.MinValue };
                     }
-
-                    context.Ranges = dims;
-
-                    Update(restart, context);
                 }
+                context.Ranges = dims;
+
+                Update(restart, context);
             });
         }
 
@@ -349,7 +345,7 @@ namespace LiveCharts.Core.Charts
         /// <param name="plane">The axis.</param>
         /// <param name="sizeVector">The draw margin, this param is optional, if not set, the current chart's draw margin area will be used.</param>
         /// <returns></returns>
-        public abstract float ScaleToUi(double dataValue, Plane plane, float[] sizeVector = null);
+        public abstract float ScaleToUi(double dataValue, Plane plane, float[]? sizeVector = null);
 
         /// <summary>
         /// Scales from pixels to a data value.
@@ -359,7 +355,7 @@ namespace LiveCharts.Core.Charts
         /// <param name="sizeVector">The size.</param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        public abstract double ScaleFromUi(float pixelsValue, Plane plane, float[] sizeVector = null);
+        public abstract double ScaleFromUi(float pixelsValue, Plane plane, float[]? sizeVector = null);
 
         /// <summary>
         /// Get2s the width of the d UI unit.
@@ -383,8 +379,8 @@ namespace LiveCharts.Core.Charts
         /// <param name="selectionMode">The selection mode.</param>
         /// <param name="snapToClosest">Specifies if the result should only get the closest point.</param>
         /// <returns></returns>
-        public IEnumerable<IChartPoint> GetPointsAt(PointF pointerLocation, ToolTipSelectionMode selectionMode,
-            bool snapToClosest)
+        public IEnumerable<IChartPoint>? GetPointsAt(
+            PointF pointerLocation, ToolTipSelectionMode selectionMode, bool snapToClosest)
         {
             if (!snapToClosest)
             {
@@ -399,7 +395,7 @@ namespace LiveCharts.Core.Charts
                 }).ToArray();
             float min = results.Min(x => x.Distance);
             // ReSharper disable once CompareOfFloatsByEqualityOperator
-            return results.Where(x => x.Distance == min).Select(x => x.Point);
+            return results?.Where(x => x.Distance == min).Select(x => x.Point);
         }
 
         /// <summary>
@@ -407,7 +403,7 @@ namespace LiveCharts.Core.Charts
         /// </summary>
         /// <param name="pointerLocation">The dimensions.</param>
         /// <param name="args">The args.</param>
-        protected virtual void ViewOnPointerMoved(PointF pointerLocation, EventArgs args)
+        protected virtual void OnViewPointerMoved(PointF pointerLocation, EventArgs args)
         {
             if (Series == null) return;
             if (!IsViewInitialized) return;
@@ -431,7 +427,7 @@ namespace LiveCharts.Core.Charts
         /// </summary>
         /// <param name="pointerLocation">The pointer location.</param>
         /// /// <param name="args">The event args.</param>
-        protected virtual void ViewOnPointerDown(PointF pointerLocation, EventArgs args)
+        protected virtual void OnViewPointerDown(PointF pointerLocation, EventArgs args)
         {
             if (Series == null) return;
             if (!IsViewInitialized) return;
@@ -439,7 +435,7 @@ namespace LiveCharts.Core.Charts
             {
                 return;
             }
-            
+
             IChartPoint[] query = GetPointsAt(pointerLocation, ToolTipSelectionMode.SharedXy, false).ToArray();
 
             if (query.Length < 1)
@@ -453,7 +449,14 @@ namespace LiveCharts.Core.Charts
             if (View.DataToolTip != null)
             {
                 ShowTooltip(query);
-            }
+            }            
+        }
+
+        /// <summary>
+        /// Called when the pointer gors up.
+        /// </summary>
+        protected virtual void OnViewPointerUp()
+        {
         }
 
         /// <summary>
@@ -538,8 +541,8 @@ namespace LiveCharts.Core.Charts
                 Legend.Move(new PointF(lx, ly), View);
             }
 
-            DrawAreaLocation = new[] {dax, day};
-            DrawAreaSize = Perform.SubstractEach2D(chartSize, new[] {lw, lh});
+            DrawAreaLocation = new[] { dax, day };
+            DrawAreaSize = Perform.SubstractEach2D(chartSize, new[] { lw, lh });
             View.SetContentArea(
                 new RectangleF(
                     new PointF(DrawAreaLocation[0], DrawAreaLocation[1]),
@@ -547,7 +550,7 @@ namespace LiveCharts.Core.Charts
         }
 
         /// <summary>
-        /// Copies the data from the view o use it in the next update cycle.
+        /// Copies the data from the view to use it in the next update cycle.
         /// </summary>
         protected virtual void CopyDataFromView()
         {
@@ -586,14 +589,13 @@ namespace LiveCharts.Core.Charts
             {
                 _resources.Add(resource);
 
-                // ReSharper disable once IdentifierTypo
                 if (resource is INotifyPropertyChanged inpc)
                 {
-                    inpc.PropertyChanged += InvalidatePropertyChanged;
+                    inpc.PropertyChanged += InvalidateOnPropertyChanged;
 
-                    void DisposePropertyChanged(IChartView view, object instance)
+                    void DisposePropertyChanged(IChartView view, object instance, bool force)
                     {
-                        inpc.PropertyChanged -= InvalidatePropertyChanged;
+                        inpc.PropertyChanged -= InvalidateOnPropertyChanged;
                         resource.Disposed -= DisposePropertyChanged;
                     }
 
@@ -601,7 +603,10 @@ namespace LiveCharts.Core.Charts
                 }
             }
 
+            // posible bug in C#8 beta compiler
+#pragma warning disable CS8602 // Possible dereference of a null reference.
             resource.UpdateId = UpdateId;
+#pragma warning restore CS8602 // Possible dereference of a null reference.
         }
 
         internal void RegisterINotifyCollectionChanged(IEnumerable collection)
@@ -653,7 +658,7 @@ namespace LiveCharts.Core.Charts
             }
         }
 
-        private void InvalidatePropertyChanged(
+        private void InvalidateOnPropertyChanged(
             object sender, PropertyChangedEventArgs args)
         {
             if (!IsViewInitialized) return;
@@ -766,18 +771,18 @@ namespace LiveCharts.Core.Charts
             return new PointF(toolTipLocation.X + xCorrection, toolTipLocation.Y + yCorrection);
         }
 
-        private void OnToolTipTimeoutTimerOnElapsed(object sender, ElapsedEventArgs args)
+        private void OnToolTipTimeoutElapsed(object sender, ElapsedEventArgs args)
         {
             View.InvokeOnUiThread(() => { View.DataToolTip.Hide(View); });
             ToolTipTimeoutTimer.Stop();
         }
 
-        private void OnViewOnChartViewResized(IChartView sender)
+        private void OnViewOResized(IChartView sender)
         {
             Invalidate();
         }
 
-        private void OnContentOnContentLoaded(IChartView sender)
+        private void OnCanvasLoaded(IChartView sender)
         {
             IsViewInitialized = true;
             Invalidate();
@@ -802,29 +807,22 @@ namespace LiveCharts.Core.Charts
                 resource.Dispose(View, true);
             }
 
-            UpdateId = null;
+            _resources.Clear();
+            _enumerableResources.Clear();
 
-            _resources = null;
-            _enumerableResources = null;
-            _colors = null;
-            _delayer = null;
-
-            Series = null;
-            Dimensions = null;
-            ControlSize = null;
+            Series = new ISeries[0];
+            Dimensions = new Plane[0][];
             Legend = null;
 
             _previousHovered = null;
 
-            View.Content.ContentLoaded -= OnContentOnContentLoaded;
-            View.ViewResized -= OnViewOnChartViewResized;
-            View.Content.PointerMoved -= ViewOnPointerMoved;
-            View.Content.PointerDown -= ViewOnPointerDown;
-            ToolTipTimeoutTimer.Elapsed -= OnToolTipTimeoutTimerOnElapsed;
-            ToolTipTimeoutTimer = null;
+            View.Canvas.CanvasLoaded -= OnCanvasLoaded;
+            View.ViewResized -= OnViewOResized;
+            View.Canvas.PointerMoved -= OnViewPointerMoved;
+            View.Canvas.PointerDown -= OnViewPointerDown;
+            ToolTipTimeoutTimer.Elapsed -= OnToolTipTimeoutElapsed;
 
-            View.Content.Dispose();
-            View = null;
+            View.Canvas.Dispose();
         }
 
         /// <summary>

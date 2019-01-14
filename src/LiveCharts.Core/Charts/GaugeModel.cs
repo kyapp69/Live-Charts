@@ -28,44 +28,50 @@
 using System;
 using System.Drawing;
 using System.Linq;
-using LiveCharts.Core.DataSeries;
-using LiveCharts.Core.Dimensions;
-using LiveCharts.Core.Interaction;
-using LiveCharts.Core.Interaction.Controls;
-using LiveCharts.Core.Interaction.Points;
-using LiveCharts.Core.Updating;
+using LiveCharts.DataSeries;
+using LiveCharts.Dimensions;
+using LiveCharts.Interaction.Points;
+using LiveCharts.Updating;
 
 #endregion
 
-namespace LiveCharts.Core.Charts
+namespace LiveCharts.Charts
 {
     /// <summary>
     /// The gauge model.
     /// </summary>
-    /// <seealso cref="LiveCharts.Core.Charts.ChartModel" />
+    /// <seealso cref="ChartModel" />
     public class GaugeModel : ChartModel
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GaugeModel" /> class
+        /// </summary>
+        /// <param name="view"></param>
         public GaugeModel(IChartView view) : base(view)
         {
         }
 
+        /// <inheritdoc />
         protected override int DimensionsCount => 2;
 
-        public override float ScaleToUi(double dataValue, Plane plane, float[] sizeVector = null)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override double ScaleFromUi(float pixelsValue, Plane plane, float[] sizeVector = null)
+        /// <inheritdoc />
+        public override float ScaleToUi(double dataValue, Plane plane, float[]? sizeVector = null)
         {
             throw new NotImplementedException();
         }
 
         /// <inheritdoc />
-        protected override void ViewOnPointerMoved(PointF pointerLocation, EventArgs args)
+        public override double ScaleFromUi(float pixelsValue, Plane plane, float[]? sizeVector = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
+        protected override void OnViewPointerMoved(PointF pointerLocation, EventArgs args)
         {
         }
 
+        /// <inheritdoc />
         protected override PointF GetTooltipLocation(IChartPoint[] points)
         {
             throw new NotImplementedException();
@@ -84,7 +90,7 @@ namespace LiveCharts.Core.Charts
                 return;
             }
 
-            View.Content.DrawArea = new RectangleF(
+            View.Canvas.DrawArea = new RectangleF(
                 new PointF(DrawAreaLocation[0], DrawAreaLocation[1]),
                 new SizeF(DrawAreaSize[0], DrawAreaSize[1]));
 

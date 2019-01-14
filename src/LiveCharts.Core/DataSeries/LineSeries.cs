@@ -24,37 +24,35 @@
 #endregion
 #region
 
+using LiveCharts.Animations;
+using LiveCharts.Animations.Ease;
+using LiveCharts.Charts;
+using LiveCharts.Coordinates;
+using LiveCharts.Dimensions;
+using LiveCharts.Drawing;
+using LiveCharts.Drawing.Shapes;
+using LiveCharts.Interaction;
+using LiveCharts.Interaction.Areas;
+using LiveCharts.Interaction.Points;
+using LiveCharts.Updating;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Drawing;
-using LiveCharts.Core.Animations;
-using LiveCharts.Core.Charts;
-using LiveCharts.Core.Coordinates;
-using LiveCharts.Core.Dimensions;
-using LiveCharts.Core.Drawing;
-using LiveCharts.Core.Interaction;
-using LiveCharts.Core.Interaction.ChartAreas;
-using LiveCharts.Core.Interaction.Controls;
-using LiveCharts.Core.Interaction.Points;
-using LiveCharts.Core.Interaction.Series;
-using LiveCharts.Core.Updating;
 
 #endregion
 
-namespace LiveCharts.Core.DataSeries
+namespace LiveCharts.DataSeries
 {
     /// <summary>
     /// The line series class.
     /// </summary>
     /// <typeparam name="TModel">The type of the model.</typeparam>
     public class LineSeries<TModel>
-        : CartesianStrokeSeries<TModel, PointCoordinate, BezierViewModel, ILineSeries>, ILineSeries
+        : CartesianStrokeSeries<TModel, PointCoordinate, IBezierShape>, ILineSeries
     {
-        private ISeriesViewProvider<TModel, PointCoordinate, BezierViewModel, ILineSeries> _provider;
         private double _lineSmoothness;
         private double _geometrySize;
         private double _pivot;
+        private double _previousLenght;
         private const string PathKey = "path";
 
         /// <summary>
@@ -68,8 +66,8 @@ namespace LiveCharts.Core.DataSeries
             LineSmoothness = .8f;
             DataLabelFormatter = coordinate => Format.AsMetricNumber(coordinate.Y);
             TooltipFormatter = DataLabelFormatter;
-            Charting.BuildFromTheme<ILineSeries>(this);
-            Charting.BuildFromTheme<ISeries<PointCoordinate>>(this);
+            Global.Settings.BuildFromTheme<ILineSeries>(this);
+            Global.Settings.BuildFromTheme<ISeries<PointCoordinate>>(this);
         }
 
         /// <inheritdoc />
@@ -79,7 +77,7 @@ namespace LiveCharts.Core.DataSeries
             set
             {
                 _lineSmoothness = value;
-                OnPropertyChanged();
+                OnPropertyChanged(nameof(LineSmoothness));
             }
         }
 
@@ -90,7 +88,7 @@ namespace LiveCharts.Core.DataSeries
             set
             {
                 _geometrySize = value;
-                OnPropertyChanged();
+                OnPropertyChanged(nameof(GeometrySize));
             }
         }
 
@@ -101,7 +99,7 @@ namespace LiveCharts.Core.DataSeries
             set
             {
                 _pivot = value;
-                OnPropertyChanged();
+                OnPropertyChanged(nameof(Pivot));
             }
         }
 
@@ -109,44 +107,31 @@ namespace LiveCharts.Core.DataSeries
         public override Type ThemeKey => typeof(ILineSeries);
 
         /// <inheritdoc />
-        public override float[] DefaultPointWidth => new[] {0f, 0f};
+        public override float[] DefaultPointWidth => new[] { 0f, 0f };
 
         /// <inheritdoc />
-        public override float PointMargin => (float) GeometrySize;
-
-        /// <inheritdoc />
-        protected override ISeriesViewProvider<TModel, PointCoordinate, BezierViewModel, ILineSeries>
-            DefaultViewProvider => _provider ?? (_provider = Charting.Settings.UiProvider.BezierViewProvider<TModel>());
+        public override float PointMargin => (float)GeometrySize;
 
         /// <inheritdoc />
         public override void UpdateView(ChartModel chart, UpdateContext context)
         {
-            var cartesianChart = (CartesianChartModel) chart;
-
-            IBezierSeriesViewProvider<TModel, PointCoordinate, BezierViewModel, ILineSeries> bezierViewProvider =
-                (IBezierSeriesViewProvider<TModel, PointCoordinate, BezierViewModel, ILineSeries>) ViewProvider;
+            var cartesianChart = (CartesianChartModel)chart;
 
             var x = chart.Dimensions[0][ScalesAt[0]];
             var y = chart.Dimensions[1][ScalesAt[1]];
 
-            ChartPoint<TModel, PointCoordinate, BezierViewModel, ILineSeries> previous = null;
-            var timeLine = new TimeLine
-            {
-                Duration = AnimationsSpeed == TimeSpan.MaxValue ? chart.View.AnimationsSpeed : AnimationsSpeed,
-                AnimationLine = AnimationLine ?? chart.View.AnimationLine
-            };
-            float originalDuration = (float)timeLine.Duration.TotalMilliseconds;
-            IEnumerable<KeyFrame> originalAnimationLine = timeLine.AnimationLine;
-            int itl = 0;
+            BezierViewModel? previous = null;
+            var animation = AnimatableArguments.BuildFrom(chart.View, this);
+            int k = 0;
 
-            Content[chart].TryGetValue(PathKey, out var path);
-            var cartesianPath = (ICartesianPath) path;
+            Content[chart].TryGetValue(PathKey, out var pathObject);
+            var path = (IPath)pathObject;
 
-            if (cartesianPath == null)
+            if (path == null)
             {
-                cartesianPath = bezierViewProvider.GetNewPath();
-                cartesianPath.Initialize(chart.View, timeLine);
-                Content[chart][PathKey] = cartesianPath;
+                path = UIFactory.GetNewCartesianPath(chart);
+                path.FlushToCanvas(chart.View.Canvas, true);
+                Content[chart][PathKey] = path;
             }
 
             double length = 0;
@@ -161,86 +146,99 @@ namespace LiveCharts.Core.DataSeries
                     chart.ScaleToUi(currentBezier.ChartPoint.Coordinate.Y, y)
                 };
 
-                if (chart.InvertXy) currentBezier.Invert();
+                if (chart.InvertXy)
+                {
+                    currentBezier.Invert();
+                }
 
                 if (isFist)
                 {
-                    var pivot = chart.InvertXy
-                        ? new PointF(chart.ScaleToUi(Pivot, y), currentBezier.ViewModel.Point1.Y)
-                        : new PointF(currentBezier.ViewModel.Point1.X, chart.ScaleToUi(Pivot, y));
-                    cartesianPath.SetStyle(
-                        currentBezier.ViewModel.Point1, pivot, Stroke, Fill, StrokeThickness, ZIndex, StrokeDashArray);
+                    path.StartPoint = currentBezier.ViewModel.Point1; // animate to start point
+                    var startSegment = UIFactory.GetNewLineSegment(chart);
+                    startSegment.Point = chart.InvertXy
+                        ? new PointD(chart.ScaleToUi(Pivot, y), currentBezier.ViewModel.Point1.Y)
+                        : new PointD(currentBezier.ViewModel.Point1.X, chart.ScaleToUi(Pivot, y));
+                    path.InsertSegment(startSegment, 0);
+                    path.StrokeThickness = StrokeThickness;
+                    path.ZIndex = ZIndex;
+                    path.StrokeDashArray = StrokeDashArray;
                     isFist = false;
                     i = p[0];
                 }
 
-                if (currentBezier.ChartPoint.View == null)
-                {
-                    currentBezier.ChartPoint.View = ViewProvider.GetNewPoint();
-                }
-
                 if (DelayRule != DelayRules.None)
                 {
-                    timeLine = AnimationExtensions.Delay(
-                        // ReSharper disable once PossibleMultipleEnumeration
-                        originalDuration, originalAnimationLine, itl / (float) PointsCount, DelayRule);
+                    animation.SetDelay(DelayRule, currentBezier.ViewModel.Index / (double)PointsCount);
                 }
 
-                currentBezier.ViewModel.Path = cartesianPath;
-                currentBezier.ChartPoint.ViewModel = currentBezier.ViewModel;
                 currentBezier.ChartPoint.InteractionArea = new RectangleInteractionArea(
-                    new RectangleF(
+                    new RectangleD(
                         currentBezier.ViewModel.Location.X,
                         currentBezier.ViewModel.Location.Y,
-                        (float) GeometrySize,
-                        (float) GeometrySize));
-                currentBezier.ChartPoint.View.DrawShape(currentBezier.ChartPoint, previous, timeLine);
-                if (DataLabels)
-                    currentBezier.ChartPoint.View.DrawLabel(
-                        currentBezier.ChartPoint, DataLabelsPosition, LabelsStyle, timeLine);
-                Mapper.EvaluateModelDependentActions(
-                    currentBezier.ChartPoint.Model, currentBezier.ChartPoint.View.VisualElement, currentBezier.ChartPoint);
+                        GeometrySize,
+                        GeometrySize));
 
-                previous = currentBezier.ChartPoint;
+                DrawPointShape(
+                    currentBezier.ChartPoint, path, animation, currentBezier.ViewModel);
+
+                if (DataLabels)
+                {
+                    DrawPointLabel(currentBezier.ChartPoint);
+                }
+
+                Mapper.EvaluateModelDependentActions(
+                    currentBezier.ChartPoint.Model, currentBezier.ChartPoint.Shape, currentBezier.ChartPoint);
+
+                previous = currentBezier.ViewModel;
                 length += currentBezier.ViewModel.AproxLength;
                 j = p[0];
-                itl++;
+                k++;
             }
 
             if (previous == null)
             {
-                previous = new ChartPoint<TModel, PointCoordinate, BezierViewModel, ILineSeries>
+                previous = new BezierViewModel
                 {
-                    ViewModel = new BezierViewModel
-                    {
-                        Point1 = new PointF()
-                    }
+                    Point1 = path.StartPoint,
+                    Point2 = path.StartPoint,
+                    Point3 = path.StartPoint
                 };
             }
-            var closePivot = chart.InvertXy
-                ? new PointF(chart.ScaleToUi(Pivot, y), previous.ViewModel.Point1.Y)
-                : new PointF(previous.ViewModel.Point1.X, chart.ScaleToUi(Pivot, y));
-            cartesianPath.Close(chart.View, closePivot, (float) length, i, j);
+
+            var endSegment = UIFactory.GetNewLineSegment(chart);
+            endSegment.Point = chart.InvertXy
+                ? new PointD(chart.ScaleToUi(Pivot, y), previous.Point1.Y)
+                : new PointD(previous.Point1.X, chart.ScaleToUi(Pivot, y));
+            path.InsertSegment(endSegment, k + 1);
+            path.Stroke = Stroke;
+            path.Fill = Fill;
+
+            double l = length / StrokeThickness;
+            double tl = l - _previousLenght;
+            double remaining = 0d;
+            if (tl < 0)
+            {
+                remaining = -tl;
+            }
+            var effect = Effects.GetAnimatedDashArray(StrokeDashArray, l + remaining);
+            path.StrokeDashArray = effect;
+            path.Animate(animation)
+                .Property(nameof(path.StrokeDashOffset), 0f, (float)(tl + remaining));
+            // cartesianPath.Close(chart.View, closePivot, (float)length, i, j);
+            _previousLenght = length;
         }
 
         private IEnumerable<BezierData> GetBeziers(ChartModel chart, Plane x, Plane y)
         {
-            ChartPoint<TModel, PointCoordinate, BezierViewModel, ILineSeries> pi, pn = null, pnn = null;
-            PointF previous, current = new PointF(0,0), next = new  PointF(0,0), nextNext = new PointF(0, 0);
+            ChartPoint<TModel, PointCoordinate, IBezierShape>? pi, pn = null, pnn = null;
+            PointD previous, current = new PointD(0, 0), next = new PointD(0, 0), nextNext = new PointD(0, 0);
             int i = 0;
 
             double smoothness = LineSmoothness > 1 ? 1 : (LineSmoothness < 0 ? 0 : LineSmoothness);
-            float r = (float) (GeometrySize * .5);
+            float r = (float)(GeometrySize * .5);
 
-            IEnumerator<ChartPoint<TModel, PointCoordinate, BezierViewModel, ILineSeries>> e =
-                GetPoints(chart.View).GetEnumerator();
+            var e = GetPoints(chart.View).GetEnumerator();
             bool isFirstPoint = true;
-
-            double GetDistance(PointF p1, PointF p2)
-            {
-                return Math.Sqrt(
-                    Math.Pow(p2.X - p1.X, 2) + Math.Pow(p2.Y - p1.Y, 2));
-            }
 
             // ReSharper disable once ImplicitlyCapturedClosure
             BezierViewModel BuildModel()
@@ -257,18 +255,22 @@ namespace LiveCharts.Core.DataSeries
                 double xc3 = (next.X + nextNext.X) / 2d;
                 double yc3 = (next.Y + nextNext.Y) / 2d;
 
-                double len1 = Math.Sqrt((current.X - previous.X) * (current.X - previous.X) +
-                                     (current.Y - previous.Y) * (current.Y - previous.Y));
-                double len2 = Math.Sqrt((next.X - current.X) * (next.X - current.X) +
-                                     (next.Y - current.Y) * (next.Y - current.Y));
-                double len3 = Math.Sqrt((nextNext.X - next.X) * (nextNext.X - next.X) +
-                                     (nextNext.Y - next.Y) * (nextNext.Y - next.Y));
+                double len1 = GetDistance(current, previous);
+                double len2 = GetDistance(current, next);
+                double len3 = GetDistance(next, nextNext);
 
                 double k1 = len1 / (len1 + len2);
                 double k2 = len2 / (len2 + len3);
 
-                if (double.IsNaN(k1)) k1 = 0d;
-                if (double.IsNaN(k2)) k2 = 0d;
+                if (double.IsNaN(k1))
+                {
+                    k1 = 0d;
+                }
+
+                if (double.IsNaN(k2))
+                {
+                    k2 = 0d;
+                }
 
                 double xm1 = xc1 + (xc2 - xc1) * k1;
                 double ym1 = yc1 + (yc2 - yc1) * k1;
@@ -282,13 +284,13 @@ namespace LiveCharts.Core.DataSeries
 
                 var bezier = new BezierViewModel
                 {
-                    Index = i,
-                    Location = new PointF(current.X - r, current.Y - r),
-                    Point1 = isFirstPoint ? current : new PointF((float) c1X, (float) c1Y),
-                    Point2 = new PointF((float) c2X, (float) c2Y),
+                    Index = i + 1,
+                    Location = new PointD(current.X - r, current.Y - r),
+                    Point1 = isFirstPoint ? current : new PointD((float)c1X, (float)c1Y),
+                    Point2 = new PointD((float)c2X, (float)c2Y),
                     Point3 = next,
                     Geometry = Geometry,
-                    GeometrySize = (float) GeometrySize
+                    GeometrySize = (float)GeometrySize
                 };
 
                 // based on: 
@@ -296,9 +298,7 @@ namespace LiveCharts.Core.DataSeries
                 // according to a previous test, this method seems fast, and accurate enough for our purposes
 
                 double chord = GetDistance(current, next);
-                double net = GetDistance(current, bezier.Point1) +
-                          GetDistance(bezier.Point1, bezier.Point2) +
-                          GetDistance(bezier.Point2, next);
+                double net = GetDistance(current, bezier.Point1) + GetDistance(bezier.Point1, bezier.Point2) + GetDistance(bezier.Point2, next);
                 bezier.AproxLength = (chord + net) / 2;
                 i++;
 
@@ -306,7 +306,7 @@ namespace LiveCharts.Core.DataSeries
             }
 
             // ReSharper disable once ImplicitlyCapturedClosure
-            void Next(ChartPoint<TModel, PointCoordinate, BezierViewModel, ILineSeries> item)
+            void Next(ChartPoint<TModel, PointCoordinate, IBezierShape>? item)
             {
                 pi = pn;
                 pn = pnn;
@@ -315,8 +315,7 @@ namespace LiveCharts.Core.DataSeries
                 previous = current;
                 current = next;
                 next = nextNext;
-                nextNext = new PointF(chart.ScaleToUi(pnn.Coordinate.X, x), chart.ScaleToUi(pnn.Coordinate.Y, y));
-
+                nextNext = pnn == null ? new PointD() : new PointD(chart.ScaleToUi(pnn.Coordinate.X, x), chart.ScaleToUi(pnn.Coordinate.Y, y));
             }
 
             while (e.MoveNext())
@@ -354,17 +353,78 @@ namespace LiveCharts.Core.DataSeries
             e.Dispose();
         }
 
+        private double GetDistance(PointD p1, PointD p2)
+        {
+            return Math.Sqrt(
+                Math.Pow(p2.X - p1.X, 2) + Math.Pow(p2.Y - p1.Y, 2));
+        }
+
+        private void DrawPointShape(
+            ChartPoint<TModel, PointCoordinate, IBezierShape> current,
+            IPath path,
+            AnimatableArguments animationArgs,
+            BezierViewModel vm)
+        {
+            bool isNew = current.Shape == null;
+
+            if (current.Shape == null)
+            {
+                current.Shape = UIFactory.GetNewBezierShape(current.Chart.Model);
+                current.Shape.FlushToCanvas(current.Chart.Canvas, true);
+                current.Shape.Left = vm.Location.X;
+                current.Shape.Top = vm.Location.Y;
+                current.Shape.Width = 0;
+                current.Shape.Height = 0;
+
+                current.Shape.Segment.Point1 = vm.Point1;
+                current.Shape.Segment.Point2 = vm.Point2;
+                current.Shape.Segment.Point3 = vm.Point3;
+                path.InsertSegment(current.Shape.Segment, vm.Index);
+
+                var geometryAnimation = new AnimatableArguments(
+                    TimeSpan.FromMilliseconds(animationArgs.Duration.TotalMilliseconds * 2),
+                    new DelayedFunction(animationArgs.EasingFunction, .5));
+
+                float r = vm.GeometrySize * .5f;
+
+                current.Shape.Animate(geometryAnimation)
+                    .Property(nameof(IShape.Left), vm.Location.X + r, vm.Location.X, 0.5)
+                    .Property(nameof(IShape.Top), vm.Location.Y + r, vm.Location.Y, 0.5)
+                    .Property(nameof(IShape.Width), 0, vm.GeometrySize, 0.5)
+                    .Property(nameof(IShape.Height), 0, vm.GeometrySize, 0.5)
+                    .Begin();
+            }
+
+            current.Shape.StrokeThickness = StrokeThickness;
+            current.Shape.Fill = Fill;
+            current.Shape.Stroke = Stroke;
+
+            if (!isNew)
+            {
+                current.Shape.Animate(animationArgs)
+                    .Property(nameof(IShape.Left), current.Shape.Left, (float)vm.Location.X)
+                    .Property(nameof(IShape.Top), current.Shape.Top, (float)vm.Location.Y)
+                    .Begin();
+            }
+
+            current.Shape.Segment.Animate(animationArgs)
+                .Property(nameof(IBezierSegment.Point1), current.Shape.Segment.Point1, vm.Point1)
+                .Property(nameof(IBezierSegment.Point2), current.Shape.Segment.Point2, vm.Point2)
+                .Property(nameof(IBezierSegment.Point3), current.Shape.Segment.Point3, vm.Point3)
+                .Begin();
+        }
+
         private struct BezierData
         {
-            public ChartPoint<TModel, PointCoordinate, BezierViewModel, ILineSeries> ChartPoint { get; set; }
+            public ChartPoint<TModel, PointCoordinate, IBezierShape> ChartPoint { get; set; }
             public BezierViewModel ViewModel { get; set; }
 
             public void Invert()
             {
-                ViewModel.Location = new PointF(ViewModel.Location.Y, ViewModel.Location.X);
-                ViewModel.Point1 = new PointF(ViewModel.Point1.Y, ViewModel.Point1.X);
-                ViewModel.Point2 = new PointF(ViewModel.Point2.Y, ViewModel.Point2.X);
-                ViewModel.Point3 = new PointF(ViewModel.Point3.Y, ViewModel.Point3.X);
+                ViewModel.Location = new PointD(ViewModel.Location.Y, ViewModel.Location.X);
+                ViewModel.Point1 = new PointD(ViewModel.Point1.Y, ViewModel.Point1.X);
+                ViewModel.Point2 = new PointD(ViewModel.Point2.Y, ViewModel.Point2.X);
+                ViewModel.Point3 = new PointD(ViewModel.Point3.Y, ViewModel.Point3.X);
             }
         }
 
@@ -374,9 +434,13 @@ namespace LiveCharts.Core.DataSeries
             Dictionary<string, object> viewContent = Content[view.Model];
 
             viewContent.TryGetValue(PathKey, out var path);
-            if (path == null) return;
-            var cartesianPath = path as ICartesianPath;
-            cartesianPath?.Dispose(view);
+            if (path == null)
+            {
+                return;
+            }
+
+            var cartesianPath = path as IPath;
+            // cartesianPath?.Dispose(view);
             viewContent.Remove(PathKey);
             base.OnDisposing(view, force);
         }

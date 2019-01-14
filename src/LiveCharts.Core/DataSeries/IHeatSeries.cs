@@ -26,11 +26,11 @@
 #region
 
 using System.Collections.Generic;
-using LiveCharts.Core.Drawing;
+using LiveCharts.Drawing;
 
 #endregion
 
-namespace LiveCharts.Core.DataSeries
+namespace LiveCharts.DataSeries
 {
     /// <summary>
     /// The heat series interface.
@@ -43,6 +43,6 @@ namespace LiveCharts.Core.DataSeries
         /// <value>
         /// The gradient stop collection.
         /// </value>
-        IEnumerable<GradientStop> Gradient { get; set; }
+        IEnumerable<GradientStop>? Gradient { get; set; }
     }
 }

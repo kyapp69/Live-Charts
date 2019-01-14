@@ -25,26 +25,47 @@
 #region
 
 using System.Collections.Generic;
-using LiveCharts.Core.Charts;
-using LiveCharts.Core.Coordinates;
-using LiveCharts.Core.DataSeries;
-using LiveCharts.Core.Interaction.Series;
+using LiveCharts.Charts;
+using LiveCharts.Coordinates;
+using LiveCharts.DataSeries;
+using LiveCharts.Interaction.Series;
 
 #endregion
 
-namespace LiveCharts.Core.Updating
+namespace LiveCharts.Updating
 {
     /// <summary>
     /// Point factory options class.
     /// </summary>
-    public class DataFactoryContext<TModel, TCoordinate, TSeries> : IDataFactoryContext
+    public class DataFactoryContext<TModel, TCoordinate> : IDataFactoryContext
         where TCoordinate : ICoordinate
-        where TSeries : ISeries
     {
         private bool _isGiKnown;
         private int _gi;
         private bool _isScalesAtKnown;
-        private int[] _scalesAt;
+        private int[] _scalesAt = new int[0];
+
+        /// <summary>
+        /// Inializes a new intance of the <see cref="DataFactoryContext{TModel, TCoordinate}"/> class.
+        /// </summary>
+        /// <param name="chart"></param>
+        /// <param name="series"></param>
+        /// <param name="context"></param>
+        /// <param name="mapper"></param>
+        /// <param name="values"></param>
+        public DataFactoryContext(
+            ChartModel chart,
+            ISeries series,
+            UpdateContext context,
+            ModelToCoordinateMapper<TModel, TCoordinate> mapper,
+            IList<TModel> values)
+        {
+            Series = series;
+            Mapper = mapper;
+            Chart = chart;
+            UpdateContext = context;
+            Collection = values;
+        }
 
         /// <summary>
         /// Gets the collection.
@@ -52,7 +73,7 @@ namespace LiveCharts.Core.Updating
         /// <value>
         /// The collection.
         /// </value>
-        public IList<TModel> Collection { get; internal set; }
+        public IList<TModel> Collection { get; private set; }
 
         /// <summary>
         /// Gets the series.
@@ -60,7 +81,7 @@ namespace LiveCharts.Core.Updating
         /// <value>
         /// The series.
         /// </value>
-        public TSeries Series { get; internal set; }
+        public ISeries Series { get; private set; }
 
         /// <summary>
         /// Gets the mapper.
@@ -68,7 +89,7 @@ namespace LiveCharts.Core.Updating
         /// <value>
         /// The mapper.
         /// </value>
-        public ModelToCoordinateMapper<TModel, TCoordinate> Mapper { get; internal set; }
+        public ModelToCoordinateMapper<TModel, TCoordinate> Mapper { get; private set; }
 
         /// <summary>
         /// Gets or sets the ranges.
@@ -76,7 +97,7 @@ namespace LiveCharts.Core.Updating
         /// <value>
         /// The ranges.
         /// </value>
-        public float[][][] Ranges { get; set; }
+        public float[][][] Ranges { get; internal set; } = new float[0][][];
 
         /// <inheritdoc />
         public int[] SeriesScalesAt
@@ -114,10 +135,10 @@ namespace LiveCharts.Core.Updating
         }
 
         /// <inheritdoc />
-        public ChartModel Chart { get; internal set; }
+        public ChartModel Chart { get; private set; }
         
         /// <inheritdoc />
-        public UpdateContext UpdateContext { get; internal set; }
+        public UpdateContext UpdateContext { get; private set; }
 
         /// <inheritdoc />
         /// <summary>
@@ -125,11 +146,8 @@ namespace LiveCharts.Core.Updating
         /// </summary>
         public void Dispose()
         {
-            Ranges = null;
-            Collection = null;
-            Series = default(TSeries);
-            UpdateContext = null;
-            Chart = null;
+            Ranges = new float[0][][];
+            Collection.Clear();
         }
     }
 }

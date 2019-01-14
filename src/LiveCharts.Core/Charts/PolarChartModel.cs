@@ -26,14 +26,14 @@
 
 using System;
 using System.Drawing;
-using LiveCharts.Core.Dimensions;
-using LiveCharts.Core.Interaction;
-using LiveCharts.Core.Interaction.Controls;
-using LiveCharts.Core.Interaction.Points;
+using LiveCharts.Dimensions;
+using LiveCharts.Interaction;
+using LiveCharts.Interaction.Controls;
+using LiveCharts.Interaction.Points;
 
 #endregion
 
-namespace LiveCharts.Core.Charts
+namespace LiveCharts.Charts
 {
     /// <summary>
     /// Represents a chart with a polar system.
@@ -54,19 +54,19 @@ namespace LiveCharts.Core.Charts
         protected override int DimensionsCount => 2;
 
         /// <inheritdoc />
-        public override float ScaleToUi(double dataValue, Plane plane, float[] sizeVector = null)
+        public override float ScaleToUi(double dataValue, Plane plane, float[]? sizeVector = null)
         {
             throw new System.NotImplementedException();
         }
 
         /// <inheritdoc />
-        public override double ScaleFromUi(float pixelsValue, Plane plane, float[] sizeVector = null)
+        public override double ScaleFromUi(float pixelsValue, Plane plane, float[]? sizeVector = null)
         {
             throw new System.NotImplementedException();
         }
 
         /// <inheritdoc />
-        protected override void ViewOnPointerMoved(PointF pointerLocation, EventArgs args)
+        protected override void OnViewPointerMoved(PointF pointerLocation, EventArgs args)
         {
             throw new System.NotImplementedException();
         }
